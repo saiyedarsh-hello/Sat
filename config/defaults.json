@@ -1,0 +1,47 @@
+{
+  "app_name": "Saturday",
+  "version": "1.0.0",
+  "ai": {
+    "provider": "claude",
+    "model": "claude-sonnet-4-5",
+    "api_key": "",
+    "temperature": 0.7,
+    "max_tokens": 1024,
+    "system_prompt": "You are Saturday, a smart, friendly, and efficient AI desktop assistant. You help with tasks, answer questions, control the computer, manage files, set reminders, and remember important information. Be concise and helpful. When performing actions, confirm what you did briefly."
+  },
+  "voice": {
+    "tts_engine": "pyttsx3",
+    "tts_rate": 175,
+    "tts_volume": 1.0,
+    "tts_voice_index": 0,
+    "stt_model": "tiny.en",
+    "stt_device": "cpu",
+    "stt_language": "en",
+    "input_device": null,
+    "vad_aggressiveness": 2,
+    "silence_threshold_ms": 1200
+  },
+  "hotkey": "ctrl+space",
+  "auto_startup": true,
+  "auto_dismiss_seconds": 4,
+  "memory": {
+    "short_term_max": 20,
+    "long_term_collection": "saturday_memories",
+    "persist_dir": "data/chromadb"
+  },
+  "ui": {
+    "theme": "dark",
+    "orb_size": 200,
+    "card_duration_ms": 4000,
+    "animations_enabled": true,
+    "show_waveform": true
+  },
+  "reminders": {
+    "check_interval_seconds": 30
+  },
+  "logging": {
+    "level": "INFO",
+    "max_bytes": 5242880,
+    "backup_count": 3
+  }
+}
