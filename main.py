@@ -110,7 +110,7 @@ class _SubsystemLoader(QRunnable):
         self._ctrl = controller
 
     def run(self) -> None:
-        from voice import AudioRecorder, STTEngine, TTSEngine
+        from voice import AudioRecorder, StreamRecorder, STTEngine, TTSEngine
         from ai import LLMClient, Agent
         from memory import MemoryManager
         from automation import AppControl, FileOps, BrowserControl, SystemActions, ReminderEngine
@@ -157,15 +157,16 @@ class _SubsystemLoader(QRunnable):
         )
         ctrl.agent = agent
 
-        # Recorder (needs VAD silence → controller callback)
+        # ── Shared level callback ──────────────────────────────────────────────
         def _on_level(level: float) -> None:
             ctrl.audio_level.emit(level)
 
-        def _on_silence() -> None:
-            ctrl.vad_silence_requested.emit()
-
         def _on_recorder_error(message: str) -> None:
             ctrl.recorder_error.emit(message)
+
+        # ── Push-to-talk AudioRecorder (legacy / fallback) ────────────────────
+        def _on_silence() -> None:
+            ctrl.vad_silence_requested.emit()
 
         recorder = AudioRecorder(
             level_callback=_on_level,
@@ -177,7 +178,25 @@ class _SubsystemLoader(QRunnable):
         )
         ctrl.recorder = recorder
 
-        log.info("All subsystems loaded.")
+        # ── Real-time StreamRecorder ───────────────────────────────────────────
+        # utterance_callback fires from a background thread → emit a signal so
+        # AppController.on_stream_utterance() runs on the Qt main thread.
+        def _on_utterance(audio) -> None:
+            ctrl.utterance_ready.emit(audio)
+
+        stream_recorder = StreamRecorder(
+            level_callback=_on_level,
+            utterance_callback=_on_utterance,
+            error_callback=_on_recorder_error,
+            silence_threshold_ms=config.get("voice", "silence_threshold_ms", default=900),
+            vad_aggressiveness=config.get("voice", "vad_aggressiveness", default=2),
+            min_speech_ms=300,
+            max_utterance_ms=15000,
+            device=config.get("voice", "input_device", default=None),
+        )
+        ctrl.stream_recorder = stream_recorder
+
+        log.info("All subsystems loaded — real-time voice ready.")
 
 
 # ── Hotkey listener ───────────────────────────────────────────────────────────
@@ -212,6 +231,7 @@ class SaturdayApp:
 
         # Core controller
         self.controller = AppController()
+        self.controller.set_streaming_mode(config.get("voice", "streaming_mode", default=True))
 
         # UI components
         self.overlay   = OverlayWidget()
@@ -355,6 +375,9 @@ class SaturdayApp:
         if self.controller.tts:
             self.controller.tts.reload_settings()
 
+        # Apply streaming mode setting immediately
+        new_streaming = config.get("voice", "streaming_mode", default=True)
+        self.controller.set_streaming_mode(new_streaming)
         # (Re)initialize LLM + Agent whenever settings change so a freshly-entered
         # API key is picked up immediately without restarting Saturday.
         def _reinit_agent():
@@ -403,8 +426,12 @@ class SaturdayApp:
     def _quit(self) -> None:
         log.info("Saturday shutting down.")
         self.controller.deactivate()
+        # Stop push-to-talk recorder
         if self.controller.recorder:
             self.controller.recorder.stop()
+        # Stop real-time stream recorder
+        if self.controller.stream_recorder:
+            self.controller.stream_recorder.stop()
         from automation import ReminderEngine
         # stop reminder scheduler if available
         if self.controller.agent and hasattr(self.controller.agent, '_reminders'):

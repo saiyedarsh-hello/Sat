@@ -1,8 +1,9 @@
 """
 voice/recorder.py
-sounddevice-based audio capture with WebRTC VAD gating.
-Runs in a background thread; emits audio_level floats and signals
-AppController when speech ends (VAD silence detected).
+Two recorder classes:
+  - AudioRecorder   : original push-to-talk recorder (kept for compatibility)
+  - StreamRecorder  : always-on real-time recorder with per-utterance callbacks
+Both use sounddevice + WebRTC VAD for speech detection.
 """
 
 from __future__ import annotations
@@ -22,6 +23,8 @@ FRAME_DURATION_MS = 30   # VAD frame size (10 / 20 / 30 ms)
 FRAME_SAMPLES = int(SAMPLE_RATE * FRAME_DURATION_MS / 1000)
 FRAME_BYTES = FRAME_SAMPLES * 2   # int16 = 2 bytes
 
+
+# ── Original push-to-talk recorder (used by AppController legacy flow) ─────────
 
 class AudioRecorder:
     """
@@ -162,6 +165,242 @@ class AudioRecorder:
 
     def _is_speech(self, frame: bytes) -> bool:
         """WebRTC VAD or energy fallback."""
+        arr = np.frombuffer(frame[:FRAME_BYTES], dtype=np.int16).astype(np.float32)
+        rms = float(np.sqrt(np.mean(arr ** 2)))
+
+        if self._vad:
+            try:
+                if self._vad.is_speech(frame[:FRAME_BYTES], SAMPLE_RATE):
+                    return True
+            except Exception:
+                pass
+
+        return rms > 350
+
+    def _drain_queue(self) -> None:
+        while True:
+            try:
+                self._audio_q.get_nowait()
+            except queue.Empty:
+                return
+
+    def _emit_error(self, message: str) -> None:
+        if self._error_cb:
+            self._error_cb(message)
+
+
+# ── Real-time streaming recorder ───────────────────────────────────────────────
+
+class StreamRecorder:
+    """
+    Always-on real-time microphone recorder.
+    Continuously listens, detects speech utterances via VAD, and fires
+    `utterance_callback(np.ndarray)` for each complete spoken segment.
+
+    The pipeline is:
+        mic → VAD frame analysis → collect utterance → emit for STT → repeat
+
+    Usage:
+        recorder = StreamRecorder(
+            level_callback=lambda lvl: ...,
+            utterance_callback=lambda audio: ...,   # called with int16 ndarray
+            error_callback=lambda msg: ...,
+        )
+        recorder.start()   # begins always-on capture
+        recorder.pause()   # pause while TTS is speaking (avoid feedback)
+        recorder.resume()  # resume after TTS done
+        recorder.stop()    # fully stop
+    """
+
+    def __init__(
+        self,
+        level_callback: Callable[[float], None] | None = None,
+        utterance_callback: Callable[[np.ndarray], None] | None = None,
+        error_callback: Callable[[str], None] | None = None,
+        silence_threshold_ms: int = 900,
+        vad_aggressiveness: int = 2,
+        min_speech_ms: int = 300,        # ignore very short blips
+        max_utterance_ms: int = 15000,   # cut off runaway utterances
+        device: int | None = None,
+    ) -> None:
+        self._level_cb = level_callback
+        self._utterance_cb = utterance_callback
+        self._error_cb = error_callback
+        self._silence_threshold_ms = silence_threshold_ms
+        self._device = device
+
+        # Frame counts derived from timing
+        self._max_silent_frames = int(silence_threshold_ms / FRAME_DURATION_MS)
+        self._min_speech_frames = int(min_speech_ms / FRAME_DURATION_MS)
+        self._max_utterance_frames = int(max_utterance_ms / FRAME_DURATION_MS)
+
+        # State
+        self._running = False
+        self._paused = False            # True while TTS is playing
+        self._thread: Optional[threading.Thread] = None
+        self._stream = None
+        self._audio_q: queue.Queue[bytes] = queue.Queue()
+
+        # Per-utterance state
+        self._recording: list[bytes] = []
+        self._speech_started = False
+        self._silent_frames = 0
+        self._speech_frames = 0
+
+        # VAD
+        try:
+            import webrtcvad
+            self._vad = webrtcvad.Vad(vad_aggressiveness)
+            log.info("StreamRecorder: WebRTC VAD ready (aggressiveness=%d)", vad_aggressiveness)
+        except ImportError:
+            log.warning("webrtcvad not available — using energy VAD")
+            self._vad = None
+
+    # ── Public API ────────────────────────────────────────────────────────────
+
+    def start(self) -> None:
+        """Start the always-on mic capture loop."""
+        if self._running:
+            return
+        self._running = True
+        self._paused = False
+        self._reset_utterance()
+        self._drain_queue()
+        self._thread = threading.Thread(target=self._capture_loop, daemon=True)
+        self._thread.start()
+        log.info("StreamRecorder started — always-on listening active.")
+
+    def stop(self) -> None:
+        """Fully stop the capture loop."""
+        self._running = False
+        if self._stream:
+            try:
+                self._stream.stop()
+                self._stream.close()
+            except Exception:
+                pass
+            self._stream = None
+        log.info("StreamRecorder stopped.")
+
+    def pause(self) -> None:
+        """Pause processing (suppress utterance callbacks) — use during TTS playback."""
+        self._paused = True
+        self._reset_utterance()
+        log.debug("StreamRecorder paused.")
+
+    def resume(self) -> None:
+        """Resume utterance detection after TTS is done."""
+        self._reset_utterance()
+        self._drain_queue()
+        self._paused = False
+        log.debug("StreamRecorder resumed.")
+
+    @property
+    def is_running(self) -> bool:
+        return self._running
+
+    @property
+    def is_paused(self) -> bool:
+        return self._paused
+
+    # ── Capture loop ──────────────────────────────────────────────────────────
+
+    def _capture_loop(self) -> None:
+        try:
+            import sounddevice as sd
+        except ImportError:
+            self._emit_error("sounddevice is not installed. Real-time mic unavailable.")
+            self._running = False
+            return
+
+        try:
+            with sd.RawInputStream(
+                samplerate=SAMPLE_RATE,
+                channels=CHANNELS,
+                dtype=DTYPE,
+                blocksize=FRAME_SAMPLES,
+                device=self._device,
+                callback=self._sd_callback,
+            ) as self._stream:
+                log.info("StreamRecorder: sounddevice stream open.")
+                while self._running:
+                    try:
+                        frame = self._audio_q.get(timeout=0.1)
+                        self._process_frame(frame)
+                    except queue.Empty:
+                        continue
+        except Exception as exc:
+            log.error("StreamRecorder capture error: %s", exc)
+            self._emit_error(f"Microphone error: {exc}")
+        finally:
+            self._running = False
+
+    def _sd_callback(self, indata, frames, time_info, status) -> None:
+        if status:
+            log.debug("sounddevice status: %s", status)
+        self._audio_q.put(bytes(indata))
+
+    def _process_frame(self, frame: bytes) -> None:
+        # Always update level meter
+        arr = np.frombuffer(frame, dtype=np.int16).astype(np.float32)
+        rms = float(np.sqrt(np.mean(arr ** 2))) / 32768.0
+        if self._level_cb:
+            self._level_cb(min(1.0, rms * 8))
+
+        # Don't process utterances while paused
+        if self._paused:
+            return
+
+        is_speech = self._is_speech(frame)
+
+        if is_speech:
+            self._speech_started = True
+            self._silent_frames = 0
+            self._speech_frames += 1
+            self._recording.append(frame)
+
+            # Hard cut-off for very long utterances
+            if self._speech_frames >= self._max_utterance_frames:
+                log.debug("StreamRecorder: max utterance length reached, emitting.")
+                self._emit_utterance()
+
+        elif self._speech_started:
+            # Trailing silence — still buffer it
+            self._recording.append(frame)
+            self._silent_frames += 1
+
+            if self._silent_frames >= self._max_silent_frames:
+                # Only emit if we had enough actual speech
+                if self._speech_frames >= self._min_speech_frames:
+                    log.debug(
+                        "StreamRecorder: utterance complete (%d speech frames).",
+                        self._speech_frames,
+                    )
+                    self._emit_utterance()
+                else:
+                    log.debug("StreamRecorder: too short, ignoring.")
+                    self._reset_utterance()
+
+    def _emit_utterance(self) -> None:
+        """Fire utterance_callback with collected audio, then reset."""
+        if self._recording and self._utterance_cb:
+            raw = b"".join(self._recording)
+            audio = np.frombuffer(raw, dtype=np.int16).copy()
+            self._reset_utterance()
+            try:
+                self._utterance_cb(audio)
+            except Exception as exc:
+                log.error("utterance_callback error: %s", exc)
+        else:
+            self._reset_utterance()
+
+    def _reset_utterance(self) -> None:
+        self._recording = []
+        self._speech_started = False
+        self._silent_frames = 0
+        self._speech_frames = 0
+
+    def _is_speech(self, frame: bytes) -> bool:
         arr = np.frombuffer(frame[:FRAME_BYTES], dtype=np.int16).astype(np.float32)
         rms = float(np.sqrt(np.mean(arr ** 2)))
 

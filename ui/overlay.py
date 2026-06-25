@@ -52,9 +52,9 @@ class OverlayWidget(QWidget):
         QTimer.singleShot(320, self.hide)
 
     def on_state_changed(self, state: AppState) -> None:
-        if state in (AppState.IDLE, AppState.DISMISS):
+        if state in (AppState.IDLE, AppState.DISMISS, AppState.LISTENING):
             self.hide_overlay()
-        elif state == AppState.LISTENING:
+        elif state in (AppState.PROCESSING, AppState.SPEAKING):
             self.show_overlay()
 
     # ── Internal ──────────────────────────────────────────────────────────────

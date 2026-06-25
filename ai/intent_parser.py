@@ -111,11 +111,55 @@ class IntentParser:
         if not text:
             return ParsedIntent(Intent.CONVERSATION, raw=text)
 
+        # 1. Fast regex match
         for intent, pattern in _PATTERNS:
             if pattern.search(text):
                 slots = self._extract_slots(intent, text)
                 log.debug("Intent matched: %s for %r", intent.name, text[:60])
                 return ParsedIntent(intent=intent, slots=slots, raw=text)
+
+        # 2. LLM fallback
+        if self._llm:
+            try:
+                log.debug("Regex failed, trying LLM fallback...")
+                prompt = (
+                    "You are an intent classifier. Given the user's text, classify it into exactly ONE of the following intents:\n"
+                    "MEMORY_STORE, MEMORY_RECALL, REMINDER_SET, REMINDER_LIST, APP_OPEN, FILE_OP, BROWSER, SYSTEM_ACTION, CONVERSATION.\n\n"
+                    "Also extract relevant slots if needed:\n"
+                    "- APP_OPEN: app_name\n"
+                    "- BROWSER: query, url, engine (e.g., youtube)\n"
+                    "- SYSTEM_ACTION: action\n"
+                    "- MEMORY_STORE: content\n"
+                    "- REMINDER_SET: title, time_expr\n"
+                    "- FILE_OP: operation, name\n\n"
+                    "Provide your response EXACTLY in this format, with no other text or markdown:\n"
+                    "INTENT: <INTENT_NAME>\n"
+                    "SLOT: <key>=<value>\n"
+                    "SLOT: <key>=<value>\n\n"
+                    f"User text: \"{text}\""
+                )
+                response = self._llm.quick(prompt)
+                
+                # Parse the plain text response
+                lines = response.strip().split('\n')
+                intent_name = "CONVERSATION"
+                slots = {}
+                for line in lines:
+                    line = line.strip().replace("`", "")  # Strip random markdown
+                    if line.startswith("INTENT:"):
+                        intent_name = line.split(":", 1)[1].strip().upper()
+                    elif line.startswith("SLOT:"):
+                        slot_str = line.split(":", 1)[1].strip()
+                        if "=" in slot_str:
+                            k, v = slot_str.split("=", 1)
+                            slots[k.strip()] = v.strip()
+                
+                if hasattr(Intent, intent_name) and intent_name != "CONVERSATION":
+                    intent_enum = getattr(Intent, intent_name)
+                    log.info("LLM Intent matched: %s (slots: %s)", intent_enum.name, slots)
+                    return ParsedIntent(intent=intent_enum, slots=slots, raw=text)
+            except Exception as e:
+                log.warning("LLM fallback failed: %s", e)
 
         log.debug("No pattern matched — defaulting to CONVERSATION")
         return ParsedIntent(Intent.CONVERSATION, raw=text)

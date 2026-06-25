@@ -203,24 +203,27 @@ class SettingsPanel(QWidget):
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(12)
 
-        grp = QGroupBox("AI Provider")
+        # Free AI status badge
+        badge = QLabel("✅  Free AI — No API Key Required")
+        badge.setStyleSheet(
+            "background: rgba(52,211,153,0.15);"
+            "border: 1px solid rgba(52,211,153,0.5);"
+            "border-radius: 8px;"
+            "color: #34D399;"
+            "font-weight: 700;"
+            "font-size: 13px;"
+            "padding: 10px 16px;"
+        )
+        badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(badge)
+
+        grp = QGroupBox("AI Settings")
         form = QFormLayout(grp)
         form.setSpacing(10)
 
-        self._provider_combo = QComboBox()
-        self._provider_combo.addItems(["claude", "openai", "gemini"])
-        self._provider_combo.currentTextChanged.connect(self._on_provider_changed)
-        form.addRow("Provider:", self._provider_combo)
-
         self._model_edit = QLineEdit()
-        self._model_edit.setPlaceholderText("e.g. claude-sonnet-4-5")
-        form.addRow("Model:", self._model_edit)
-
-        self._api_key_edit = QLineEdit()
-        self._api_key_edit.setEchoMode(QLineEdit.EchoMode.Password)
-        self._api_key_edit.setPlaceholderText("Paste your API key…")
-        self._api_key_edit.textChanged.connect(self._on_api_key_changed)
-        form.addRow("API Key:", self._api_key_edit)
+        self._model_edit.setPlaceholderText("e.g. gpt-4o-mini")
+        form.addRow("Preferred Model:", self._model_edit)
 
         self._temp_spin = QDoubleSpinBox()
         self._temp_spin.setRange(0.0, 2.0)
@@ -231,6 +234,18 @@ class SettingsPanel(QWidget):
         self._max_tokens_spin.setRange(128, 8192)
         self._max_tokens_spin.setSingleStep(128)
         form.addRow("Max Tokens:", self._max_tokens_spin)
+
+        # Info label
+        info = QLabel(
+            "Saturday uses g4f (free AI) which connects to multiple\n"
+            "free AI providers automatically — no account needed."
+        )
+        info.setStyleSheet(
+            "color: rgba(240,240,255,0.5);"
+            "font-size: 11px;"
+            "padding: 4px;"
+        )
+        form.addRow("", info)
 
         layout.addWidget(grp)
         layout.addStretch()
@@ -359,15 +374,39 @@ class SettingsPanel(QWidget):
         sys_form.addRow("Card auto-dismiss:", self._dismiss_spin)
 
         layout.addWidget(sys_grp)
+
+        # Voice mode group
+        voice_mode_grp = QGroupBox("Voice Mode")
+        voice_mode_form = QFormLayout(voice_mode_grp)
+        voice_mode_form.setSpacing(10)
+
+        self._streaming_mode_chk = QCheckBox("Real-time always-on listening (recommended)")
+        self._streaming_mode_chk.setToolTip(
+            "When enabled: press hotkey once to start listening continuously.\n"
+            "Saturday detects your voice automatically and responds immediately.\n"
+            "When disabled: push-to-talk — press hotkey each time to speak."
+        )
+        voice_mode_form.addRow("", self._streaming_mode_chk)
+
+        mode_info = QLabel(
+            "🎤  Real-time: hotkey starts session, Saturday listens continuously\n"
+            "🔴  Push-to-talk: press hotkey each time you want to speak"
+        )
+        mode_info.setStyleSheet(
+            "color: rgba(240,240,255,0.5);"
+            "font-size: 11px;"
+            "padding: 4px;"
+        )
+        voice_mode_form.addRow("", mode_info)
+
+        layout.addWidget(voice_mode_grp)
         layout.addStretch()
         self._tabs.addTab(tab, "⚙  System")
 
     # ── Load / Save ───────────────────────────────────────────────────────────
 
     def _load_values(self) -> None:
-        self._provider_combo.setCurrentText(config.get("ai", "provider", default="claude"))
-        self._model_edit.setText(config.get("ai", "model", default="claude-sonnet-4-5"))
-        self._api_key_edit.setText(config.get("ai", "api_key", default=""))
+        self._model_edit.setText(config.get("ai", "model", default="gpt-4o-mini"))
         self._temp_spin.setValue(config.get("ai", "temperature", default=0.7))
         self._max_tokens_spin.setValue(config.get("ai", "max_tokens", default=1024))
 
@@ -382,11 +421,12 @@ class SettingsPanel(QWidget):
         self._animations_chk.setChecked(config.get("ui", "animations_enabled", default=True))
         self._waveform_chk.setChecked(config.get("ui", "show_waveform", default=True))
         self._dismiss_spin.setValue(config.get("auto_dismiss_seconds", default=4))
+        self._streaming_mode_chk.setChecked(config.get("voice", "streaming_mode", default=True))
 
     def _save(self) -> None:
-        config.set("ai", "provider", self._provider_combo.currentText())
-        config.set("ai", "model", self._model_edit.text().strip())
-        config.set("ai", "api_key", self._api_key_edit.text().strip())
+        config.set("ai", "provider", "g4f")
+        config.set("ai", "model", self._model_edit.text().strip() or "gpt-4o-mini")
+        config.set("ai", "api_key", "")  # No API key needed
         config.set("ai", "temperature", self._temp_spin.value())
         config.set("ai", "max_tokens", self._max_tokens_spin.value())
 
@@ -394,6 +434,7 @@ class SettingsPanel(QWidget):
         config.set("voice", "tts_volume", self._tts_volume_slider.value() / 100.0)
         config.set("voice", "stt_model", self._stt_model_combo.currentText())
         config.set("voice", "stt_device", self._stt_device_combo.currentText())
+        config.set("voice", "streaming_mode", self._streaming_mode_chk.isChecked())
 
         config.set("memory", "short_term_max", self._short_term_spin.value())
         config.set("hotkey", self._hotkey_edit.text().strip())
@@ -407,41 +448,7 @@ class SettingsPanel(QWidget):
         log.info("Settings saved.")
         self.hide()
 
-    def _on_provider_changed(self, provider: str) -> None:
-        """Auto-fill the correct default model when provider changes."""
-        _DEFAULT_MODELS = {
-            "claude": "claude-sonnet-4-5",
-            "openai": "gpt-4o-mini",
-            "gemini": "gemini-1.5-flash",
-        }
-        _PLACEHOLDERS = {
-            "claude": "e.g. claude-sonnet-4-5",
-            "openai": "e.g. gpt-4o-mini",
-            "gemini": "e.g. gemini-1.5-flash",
-        }
-        current_model = self._model_edit.text().strip()
-        # Only auto-fill if the field is empty or still has an old default
-        old_defaults = set(_DEFAULT_MODELS.values())
-        if not current_model or current_model in old_defaults:
-            self._model_edit.setText(_DEFAULT_MODELS.get(provider, ""))
-        self._model_edit.setPlaceholderText(_PLACEHOLDERS.get(provider, ""))
 
-    def _on_api_key_changed(self, key_text: str) -> None:
-        """Auto-detect the provider based on the format of the API key."""
-        key_text = key_text.strip()
-        if not key_text:
-            return
-
-        detected_provider = None
-        if key_text.startswith("sk-ant-"):
-            detected_provider = "claude"
-        elif key_text.startswith("sk-"):
-            detected_provider = "openai"
-        elif key_text.startswith("AIzaSy"):
-            detected_provider = "gemini"
-
-        if detected_provider and self._provider_combo.currentText() != detected_provider:
-            self._provider_combo.setCurrentText(detected_provider)
 
     def _test_tts(self) -> None:
         try:

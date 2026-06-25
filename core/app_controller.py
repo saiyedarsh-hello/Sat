@@ -1,6 +1,14 @@
 """
 core/app_controller.py
 Central state machine for Saturday.
+
+Two operating modes:
+  - STREAMING_MODE (default): always-on mic; each utterance is automatically
+    detected, transcribed, and responded to. Hotkey toggles the session.
+  - PUSH_TO_TALK_MODE: original behaviour — hotkey activates one-shot
+    listen → transcribe → respond cycle.
+
+The mode is selected at startup (streaming by default).
 """
 
 from __future__ import annotations
@@ -14,35 +22,38 @@ log = logging.getLogger(__name__)
 
 
 class AppState(Enum):
-    IDLE = auto()
-    LISTENING = auto()
-    PROCESSING = auto()
-    SPEAKING = auto()
-    DISMISS = auto()
+    IDLE = auto()          # Not active / streaming paused
+    LISTENING = auto()     # Actively capturing / waiting for speech
+    PROCESSING = auto()    # Transcribing + running LLM
+    SPEAKING = auto()      # TTS playing back
+    DISMISS = auto()       # Brief dismiss animation before returning to IDLE/LISTENING
 
 
 class AppController(QObject):
-    state_changed = Signal(object)
+    state_changed       = Signal(object)
     transcription_ready = Signal(str)
-    response_ready = Signal(str)
-    action_completed = Signal(str, bool)
-    error_occurred = Signal(str)
-    reminder_fired = Signal(str, str)
-    show_card = Signal(str, str)
-    audio_level = Signal(float)
+    response_ready      = Signal(str)
+    action_completed    = Signal(str, bool)
+    error_occurred      = Signal(str)
+    reminder_fired      = Signal(str, str)
+    show_card           = Signal(str, str)
+    audio_level         = Signal(float)
+    utterance_ready     = Signal(object)  # carries numpy ndarray from StreamRecorder
 
-    # Thread-safe request/result signals.
-    activate_requested = Signal()
-    deactivate_requested = Signal()
-    vad_silence_requested = Signal()
-    recorder_error = Signal(str)
-    transcription_result = Signal(str)
-    agent_result = Signal(str)
-    speak_done_requested = Signal()
+    # Thread-safe cross-thread signals
+    activate_requested      = Signal()
+    deactivate_requested    = Signal()
+    vad_silence_requested   = Signal()
+    recorder_error          = Signal(str)
+    transcription_result    = Signal(str)
+    agent_result            = Signal(str)
+    speak_done_requested    = Signal()
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._state = AppState.IDLE
+        self._streaming_mode = True   # real-time always-on by default
+        self._stream_active = False   # whether streaming session is running
 
         self._dismiss_timer = QTimer(self)
         self._dismiss_timer.setSingleShot(True)
@@ -59,26 +70,122 @@ class AppController(QObject):
         self.transcription_result.connect(self.on_transcription)
         self.agent_result.connect(self.on_response)
         self.speak_done_requested.connect(self.on_speak_done)
+        self.utterance_ready.connect(self.on_stream_utterance)
 
-        self.recorder = None
-        self.stt = None
-        self.tts = None
-        self.llm = None
-        self.agent = None
-        self.memory = None
+        # Subsystems (populated by _SubsystemLoader)
+        self.recorder        = None   # AudioRecorder (push-to-talk)
+        self.stream_recorder = None   # StreamRecorder (real-time)
+        self.stt             = None
+        self.tts             = None
+        self.llm             = None
+        self.agent           = None
+        self.memory          = None
+
+    # ── Properties ────────────────────────────────────────────────────────────
 
     @property
     def state(self) -> AppState:
         return self._state
 
-    def _transition(self, new_state: AppState) -> None:
-        if self._state == new_state:
+    @property
+    def streaming_mode(self) -> bool:
+        return self._streaming_mode
+
+    def set_streaming_mode(self, enabled: bool) -> None:
+        """Switch between real-time streaming and push-to-talk."""
+        if self._streaming_mode == enabled:
             return
-        log.debug("State: %s -> %s", self._state.name, new_state.name)
-        self._state = new_state
-        self.state_changed.emit(new_state)
+        self._streaming_mode = enabled
+        # Stop whatever is running
+        if not enabled and self._stream_active:
+            self._stop_streaming()
+        log.info("Mode: %s", "streaming" if enabled else "push-to-talk")
+
+    # ── Activation ────────────────────────────────────────────────────────────
 
     def activate(self) -> None:
+        """Hotkey pressed — behaviour depends on current mode."""
+        if self._streaming_mode:
+            self._toggle_streaming()
+        else:
+            self._push_to_talk_activate()
+
+    def deactivate(self) -> None:
+        """Stop everything and return to IDLE."""
+        self._listen_timer.stop()
+        self._dismiss_timer.stop()
+
+        if self._streaming_mode and self._stream_active:
+            self._stop_streaming()
+        else:
+            self._stop_recording()
+
+        if self.tts:
+            try:
+                self.tts.stop()
+            except Exception as exc:
+                log.debug("Failed to stop TTS: %s", exc)
+
+        self._transition(AppState.DISMISS)
+        QTimer.singleShot(250, lambda: self._transition(AppState.IDLE))
+
+    # ── Streaming mode ────────────────────────────────────────────────────────
+
+    def _toggle_streaming(self) -> None:
+        if self._stream_active:
+            log.info("Streaming deactivated by hotkey.")
+            self._stop_streaming()
+            self._transition(AppState.DISMISS)
+            QTimer.singleShot(250, lambda: self._transition(AppState.IDLE))
+        else:
+            self._start_streaming()
+
+    def _start_streaming(self) -> None:
+        if not self.stream_recorder:
+            self.show_card.emit(
+                "Saturday",
+                "Real-time voice not ready yet. Give it a moment and try again."
+            )
+            return
+
+        self._stream_active = True
+        self._transition(AppState.LISTENING)
+
+        try:
+            self.stream_recorder.start()
+            log.info("Real-time streaming started.")
+            self.show_card.emit("Saturday", "🎙  Listening… (press hotkey again to stop)")
+        except Exception as exc:
+            self._stream_active = False
+            self.on_error(f"Could not start microphone: {exc}")
+
+    def _stop_streaming(self) -> None:
+        self._stream_active = False
+        if self.stream_recorder:
+            try:
+                self.stream_recorder.stop()
+            except Exception:
+                pass
+        log.info("Real-time streaming stopped.")
+
+    def on_stream_utterance(self, audio) -> None:
+        """
+        Called (via signal) when StreamRecorder detects a complete utterance.
+        Runs STT + LLM pipeline without changing _stream_active.
+        """
+        if not self._stream_active:
+            return
+
+        # Pause mic while processing (avoid picking up TTS / processing noise)
+        if self.stream_recorder:
+            self.stream_recorder.pause()
+
+        self._transition(AppState.PROCESSING)
+        self._run_stt_on_audio(audio)
+
+    # ── Push-to-talk mode ─────────────────────────────────────────────────────
+
+    def _push_to_talk_activate(self) -> None:
         if self._state != AppState.IDLE:
             log.debug("activate() ignored; already in %s", self._state.name)
             return
@@ -88,25 +195,16 @@ class AppController(QObject):
         self._transition(AppState.LISTENING)
         self._start_recording()
 
-    def deactivate(self) -> None:
-        self._listen_timer.stop()
-        self._dismiss_timer.stop()
-        self._stop_recording()
-        if self.tts:
-            try:
-                self.tts.stop()
-            except Exception as exc:
-                log.debug("Failed to stop TTS: %s", exc)
-        self._transition(AppState.DISMISS)
-        QTimer.singleShot(250, lambda: self._transition(AppState.IDLE))
-
     def on_vad_silence(self) -> None:
+        """Called by AudioRecorder when VAD silence detected (push-to-talk)."""
         if self._state != AppState.LISTENING:
             return
         self._listen_timer.stop()
         self._stop_recording()
         self._transition(AppState.PROCESSING)
         self._run_stt()
+
+    # ── Shared transcription / LLM / TTS pipeline ─────────────────────────────
 
     def on_transcription(self, text: str) -> None:
         if self._state not in (AppState.LISTENING, AppState.PROCESSING):
@@ -122,11 +220,26 @@ class AppController(QObject):
         self._speak(text)
 
     def on_speak_done(self) -> None:
-        self._listen_timer.stop()
-        self._transition(AppState.DISMISS)
-        self._dismiss_timer.start(300)
+        if self._streaming_mode and self._stream_active:
+            # Resume real-time listening after speaking
+            self._transition(AppState.LISTENING)
+            if self.stream_recorder:
+                self.stream_recorder.resume()
+            log.debug("Streaming: resumed listening after TTS.")
+        else:
+            self._listen_timer.stop()
+            self._transition(AppState.DISMISS)
+            self._dismiss_timer.start(300)
 
     def on_error(self, msg: str) -> None:
+        # Empty message = silent soft resume (used when audio was too short)
+        if not msg:
+            if self._streaming_mode and self._stream_active:
+                self._transition(AppState.LISTENING)
+                if self.stream_recorder:
+                    self.stream_recorder.resume()
+            return
+
         if self._state in (AppState.IDLE, AppState.DISMISS):
             self.show_card.emit("Saturday", msg)
             log.debug("on_error() while %s: %s", self._state.name, msg)
@@ -135,8 +248,17 @@ class AppController(QObject):
         log.error("Error: %s", msg)
         self.error_occurred.emit(msg)
         self.show_card.emit("Error", msg)
-        self._transition(AppState.DISMISS)
-        self._dismiss_timer.start(500)
+
+        if self._streaming_mode and self._stream_active:
+            # Don't stop streaming on error — just resume listening
+            self._transition(AppState.LISTENING)
+            if self.stream_recorder:
+                self.stream_recorder.resume()
+        else:
+            self._transition(AppState.DISMISS)
+            self._dismiss_timer.start(500)
+
+    # ── Timers ────────────────────────────────────────────────────────────────
 
     def _on_dismiss_timeout(self) -> None:
         self._transition(AppState.IDLE)
@@ -146,6 +268,8 @@ class AppController(QObject):
             return
         self._stop_recording()
         self.on_error("I did not hear anything. Check your microphone and try again.")
+
+    # ── Push-to-talk recording helpers ────────────────────────────────────────
 
     def _start_recording(self) -> None:
         if not self.recorder:
@@ -164,7 +288,10 @@ class AppController(QObject):
             except Exception:
                 pass
 
+    # ── STT workers ───────────────────────────────────────────────────────────
+
     def _run_stt(self) -> None:
+        """STT from push-to-talk AudioRecorder buffer."""
         if not self.stt:
             self.transcription_result.emit("[STT not available]")
             return
@@ -172,6 +299,14 @@ class AppController(QObject):
         audio = self.recorder.get_audio() if self.recorder else None
         if audio is None or len(audio) == 0:
             self.on_error("No audio captured.")
+            return
+
+        self._run_stt_on_audio(audio)
+
+    def _run_stt_on_audio(self, audio) -> None:
+        """Run STT on an already-captured numpy audio array."""
+        if not self.stt:
+            self.transcription_result.emit("[STT not available]")
             return
 
         controller = self
@@ -184,14 +319,20 @@ class AppController(QObject):
             def run(self) -> None:
                 try:
                     text = controller.stt.transcribe(self._audio)
-                    if text:
+                    if text and text.strip():
                         controller.transcription_result.emit(text)
                     else:
-                        controller.recorder_error.emit("Could not understand audio.")
+                        # Nothing recognised — resume listening in streaming mode
+                        if controller._streaming_mode and controller._stream_active:
+                            controller.recorder_error.emit("")  # empty = soft resume
+                        else:
+                            controller.recorder_error.emit("Could not understand audio.")
                 except Exception as exc:
                     controller.recorder_error.emit(str(exc))
 
         QThreadPool.globalInstance().start(_STTTask(audio))
+
+    # ── LLM worker ────────────────────────────────────────────────────────────
 
     def _run_llm(self, text: str) -> None:
         if not self.agent:
@@ -214,6 +355,8 @@ class AppController(QObject):
 
         QThreadPool.globalInstance().start(_AgentTask(text))
 
+    # ── TTS worker ────────────────────────────────────────────────────────────
+
     def _speak(self, text: str) -> None:
         if not self.tts:
             self.speak_done_requested.emit()
@@ -235,3 +378,12 @@ class AppController(QObject):
                     controller.speak_done_requested.emit()
 
         QThreadPool.globalInstance().start(_TTSTask(text))
+
+    # ── State helper ──────────────────────────────────────────────────────────
+
+    def _transition(self, new_state: AppState) -> None:
+        if self._state == new_state:
+            return
+        log.debug("State: %s -> %s", self._state.name, new_state.name)
+        self._state = new_state
+        self.state_changed.emit(new_state)

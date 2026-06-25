@@ -2,8 +2,8 @@
   "app_name": "Saturday",
   "version": "1.0.0",
   "ai": {
-    "provider": "claude",
-    "model": "claude-sonnet-4-5",
+    "provider": "g4f",
+    "model": "gpt-4o-mini",
     "api_key": "",
     "temperature": 0.7,
     "max_tokens": 1024,
@@ -19,7 +19,8 @@
     "stt_language": "en",
     "input_device": null,
     "vad_aggressiveness": 2,
-    "silence_threshold_ms": 1200
+    "silence_threshold_ms": 1200,
+    "streaming_mode": true
   },
   "hotkey": "ctrl+space",
   "auto_startup": true,
