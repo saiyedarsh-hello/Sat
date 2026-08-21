@@ -33,18 +33,45 @@ _ABSOLUTE_PATTERNS = [
 def _parse_time_expr(expr: str) -> Optional[datetime]:
     """Parse natural time expression into a future datetime."""
     now = datetime.now()
+    clean_expr = expr.strip()
+    if not clean_expr:
+        return None
 
-    # Relative: "in 30 minutes"
-    for pattern, unit in _RELATIVE_PATTERNS:
-        m = pattern.search(expr)
-        if m:
-            n = int(m.group(1))
-            delta = timedelta(**{unit: n})
-            return now + delta
+    # 1. Try dateparser first for rich natural language support ("in 5 mins", "in an hour", "tomorrow at 9")
+    try:
+        import dateparser
+        parsed = dateparser.parse(
+            clean_expr,
+            settings={
+                "PREFER_DATES_FROM": "future",
+                "RELATIVE_BASE": now,
+                "RETURN_AS_TIMEZONE_AWARE": False,
+            },
+        )
+        if parsed and parsed > now:
+            return parsed
+    except Exception as exc:
+        log.debug("dateparser parse failed for %r: %s", clean_expr, exc)
 
-    # Absolute: "at 3pm", "at 14:30"
+    # 2. Relative regex fallback: "in 30 minutes", "in 5 mins", "in 1 hr"
+    rel_m = re.search(r"in\s+(\d+|an?)\s*(sec|second|min|minute|hr|hour|day)s?", clean_expr, re.I)
+    if rel_m:
+        count_str = rel_m.group(1).lower()
+        n = 1 if count_str in ("a", "an") else int(count_str)
+        unit_str = rel_m.group(2).lower()
+        if unit_str.startswith("sec"):
+            delta = timedelta(seconds=n)
+        elif unit_str.startswith("min"):
+            delta = timedelta(minutes=n)
+        elif unit_str.startswith("hr") or unit_str.startswith("hour"):
+            delta = timedelta(hours=n)
+        else:
+            delta = timedelta(days=n)
+        return now + delta
+
+    # 3. Absolute regex fallback: "at 3pm", "at 14:30"
     for pattern in _ABSOLUTE_PATTERNS:
-        m = pattern.search(expr)
+        m = pattern.search(clean_expr)
         if m:
             groups = m.groups()
             hour = int(groups[0])
@@ -62,6 +89,7 @@ def _parse_time_expr(expr: str) -> Optional[datetime]:
     return None
 
 
+
 class ReminderEngine:
     """Schedules and fires reminders using APScheduler."""
 
@@ -73,19 +101,8 @@ class ReminderEngine:
     def start(self) -> None:
         try:
             from apscheduler.schedulers.background import BackgroundScheduler
-            try:
-                from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
-                import os
-                from pathlib import Path
-                db_url = "sqlite:///" + str(
-                    Path(os.getenv("APPDATA", Path.home())) / "Saturday" / "saturday.db"
-                )
-                jobstores = {"default": SQLAlchemyJobStore(url=db_url, tablename="apscheduler_jobs")}
-            except Exception:
-                from apscheduler.jobstores.memory import MemoryJobStore
-                jobstores = {"default": MemoryJobStore()}
-                log.warning("SQLAlchemy jobstore unavailable — using in-memory jobstore.")
-            self._scheduler = BackgroundScheduler(jobstores=jobstores)
+            from apscheduler.jobstores.memory import MemoryJobStore
+            self._scheduler = BackgroundScheduler(jobstores={"default": MemoryJobStore()})
             self._scheduler.start()
             self._running = True
             log.info("ReminderEngine started.")
@@ -116,21 +133,32 @@ class ReminderEngine:
     def add(self, title: str, body: str, trigger_at: datetime,
             recurrence: str | None = None) -> str:
         """Schedule a reminder and persist to SQLite."""
+        now = datetime.now()
+        if trigger_at <= now:
+            # If time was parsed as slightly in the past due to execution delay, nudge to future
+            trigger_at = now + timedelta(seconds=2)
+
         db_id = models.insert_reminder(title, body, trigger_at, recurrence)
 
         if self._scheduler and self._running:
-            self._scheduler.add_job(
-                self._fire,
-                trigger="date",
-                run_date=trigger_at,
-                args=[db_id, title, body],
-                id=f"reminder_{db_id}",
-                replace_existing=True,
-            )
+            try:
+                job = self._scheduler.add_job(
+                    self._fire,
+                    trigger="date",
+                    run_date=trigger_at,
+                    args=[db_id, title, body],
+                    id=f"reminder_{db_id}",
+                    replace_existing=True,
+                    misfire_grace_time=300,
+                )
+                log.info("Scheduled APScheduler job '%s' -> %s", job.id, job.next_run_time)
+            except Exception as exc:
+                log.error("Failed to add reminder job to scheduler: %s", exc)
 
         fmt = trigger_at.strftime("%I:%M %p on %b %d")
         log.info("Reminder set: '%s' at %s", title, fmt)
         return f'Reminder set: "{title}" at {fmt}.'
+
 
     def list_upcoming(self, limit: int = 5) -> list[str]:
         """Return upcoming reminder strings for display."""
@@ -169,8 +197,10 @@ class ReminderEngine:
                         args=[row["id"], row["title"], row["body"]],
                         id=f"reminder_{row['id']}",
                         replace_existing=True,
+                        misfire_grace_time=300,
                     )
                     count += 1
+
             except Exception as exc:
                 log.debug("Skip malformed reminder %s: %s", row["id"], exc)
         if count:

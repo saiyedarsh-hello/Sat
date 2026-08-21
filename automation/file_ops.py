@@ -20,8 +20,14 @@ _DOCUMENTS = _HOME / "Documents"
 
 
 def _resolve_path(name: str) -> Path:
-    """Resolve a user-provided path string relative to Desktop or Home."""
-    p = Path(name)
+    """Resolve a user-provided path string relative to Desktop, Documents, Home, or Windows Temp."""
+    clean_name = re.sub(r"\b(?:file|folder|directory|document)\b", "", name, flags=re.I).strip() or name.strip()
+
+    if clean_name.lower() in ("temp", "tmp", "temporary"):
+        import tempfile
+        return Path(tempfile.gettempdir())
+
+    p = Path(clean_name)
     if p.is_absolute():
         return p
     # Try Desktop first, then Documents, then Home
@@ -29,7 +35,13 @@ def _resolve_path(name: str) -> Path:
         candidate = base / p
         if candidate.exists():
             return candidate
-    return _DESKTOP / p  # default: create on Desktop
+        if not p.suffix:
+            for ext in (".txt", ".tmp", ".log", ".md", ".json", ".csv"):
+                cand_ext = base / f"{clean_name}{ext}"
+                if cand_ext.exists():
+                    return cand_ext
+    return _DESKTOP / p  # default: relative to Desktop
+
 
 
 class FileOps:

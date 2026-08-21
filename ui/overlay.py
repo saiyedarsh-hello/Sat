@@ -68,5 +68,6 @@ class OverlayWidget(QWidget):
     def paintEvent(self, event) -> None:  # noqa: N802
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.fillRect(self.rect(), QColor(8, 8, 20))
+        # Translucent dark indigo vignette
+        painter.fillRect(self.rect(), QColor(8, 10, 22, 120))
         painter.end()

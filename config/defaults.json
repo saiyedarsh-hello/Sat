@@ -2,11 +2,19 @@
   "app_name": "Saturday",
   "version": "1.0.0",
   "ai": {
-    "provider": "g4f",
-    "model": "gpt-4o-mini",
+    "backend_priority": ["ollama", "openai_compat", "rule_based"],
+    "provider": "auto",
+    "model": "qwen3:8b",
     "api_key": "",
     "temperature": 0.7,
     "max_tokens": 1024,
+    "ollama": {
+      "base_url": "http://localhost:11434",
+      "model": "qwen3:8b",
+      "timeout_seconds": 30
+    },
+    "ollama_base_url": "http://localhost:11434",
+    "openai_base_url": "http://localhost:11434/v1",
     "system_prompt": "You are Saturday, a smart, friendly, and efficient AI desktop assistant. You help with tasks, answer questions, control the computer, manage files, set reminders, and remember important information. Be concise and helpful. When performing actions, confirm what you did briefly."
   },
   "voice": {
@@ -14,15 +22,17 @@
     "tts_rate": 175,
     "tts_volume": 1.0,
     "tts_voice_index": 0,
-    "stt_model": "tiny.en",
+    "stt_model": "small.en",
     "stt_device": "cpu",
     "stt_language": "en",
     "input_device": null,
-    "vad_aggressiveness": 2,
-    "silence_threshold_ms": 1200,
+    "vad_aggressiveness": 1,
+    "silence_threshold_ms": 800,
     "streaming_mode": true
   },
   "hotkey": "ctrl+space",
+  "text_hotkey": "alt+space",
+  "preferred_browser": "",
   "auto_startup": true,
   "auto_dismiss_seconds": 4,
   "memory": {

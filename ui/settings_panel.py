@@ -7,6 +7,7 @@ Frameless acrylic-style panel centered on screen.
 from __future__ import annotations
 
 import logging
+import threading
 
 from PySide6.QtCore import Qt, Signal, QTimer
 from PySide6.QtGui import QColor, QPainter, QPainterPath, QFont, QLinearGradient
@@ -201,55 +202,183 @@ class SettingsPanel(QWidget):
         tab.setWidget(inner)
         layout = QVBoxLayout(inner)
         layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(12)
+        layout.setSpacing(14)
 
-        # Free AI status badge
-        badge = QLabel("✅  Free AI — No API Key Required")
-        badge.setStyleSheet(
-            "background: rgba(52,211,153,0.15);"
-            "border: 1px solid rgba(52,211,153,0.5);"
+        # ── Ollama status badge ────────────────────────────────────────────────
+        self._ollama_status = QLabel("⬤  Ollama status: checking…")
+        self._ollama_status.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._ollama_status.setStyleSheet(
+            "background: rgba(255,255,255,0.06);"
+            "border: 1px solid rgba(255,255,255,0.12);"
             "border-radius: 8px;"
-            "color: #34D399;"
-            "font-weight: 700;"
-            "font-size: 13px;"
+            "color: rgba(240,240,255,0.6);"
+            "font-size: 13px; font-weight: 600;"
             "padding: 10px 16px;"
         )
-        badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(badge)
+        layout.addWidget(self._ollama_status)
 
-        grp = QGroupBox("AI Settings")
-        form = QFormLayout(grp)
-        form.setSpacing(10)
+        # ── Ollama connection group ────────────────────────────────────────────
+        conn_grp = QGroupBox("Ollama Connection")
+        conn_form = QFormLayout(conn_grp)
+        conn_form.setSpacing(10)
 
-        self._model_edit = QLineEdit()
-        self._model_edit.setPlaceholderText("e.g. gpt-4o-mini")
-        form.addRow("Preferred Model:", self._model_edit)
+        url_row = QHBoxLayout()
+        self._ollama_url_edit = QLineEdit()
+        self._ollama_url_edit.setPlaceholderText("http://localhost:11434")
+        url_row.addWidget(self._ollama_url_edit, 1)
+
+        test_btn = QPushButton("Test")
+        test_btn.setFixedWidth(70)
+        test_btn.setFixedHeight(34)
+        test_btn.setStyleSheet(
+            "QPushButton { background: rgba(108,99,255,0.25);"
+            "border: 1px solid rgba(108,99,255,0.5);"
+            "border-radius: 8px; color: #A78BFA; font-weight: 600; padding: 0; }"
+            "QPushButton:hover { background: rgba(108,99,255,0.45); }"
+        )
+        test_btn.clicked.connect(self._test_ollama)
+        url_row.addWidget(test_btn)
+
+        conn_form.addRow("Server URL:", url_row)
+
+        # Model selector + refresh
+        model_row = QHBoxLayout()
+        self._ollama_model_combo = QComboBox()
+        self._ollama_model_combo.setEditable(True)
+        self._ollama_model_combo.setPlaceholderText("e.g. llama3.1")
+        model_row.addWidget(self._ollama_model_combo, 1)
+
+        refresh_btn = QPushButton("↻")
+        refresh_btn.setFixedWidth(40)
+        refresh_btn.setFixedHeight(34)
+        refresh_btn.setToolTip("Fetch available models from Ollama")
+        refresh_btn.setStyleSheet(
+            "QPushButton { background: rgba(108,99,255,0.25);"
+            "border: 1px solid rgba(108,99,255,0.5);"
+            "border-radius: 8px; color: #A78BFA; font-size: 15px; }"
+            "QPushButton:hover { background: rgba(108,99,255,0.45); }"
+        )
+        refresh_btn.clicked.connect(self._fetch_models)
+        model_row.addWidget(refresh_btn)
+
+        conn_form.addRow("Model:", model_row)
+
+        hint = QLabel("Click ↻ to load models from your local Ollama server.")
+        hint.setStyleSheet("color: rgba(240,240,255,0.45); font-size: 11px;")
+        conn_form.addRow("", hint)
+
+        layout.addWidget(conn_grp)
+
+        # ── Generation settings ────────────────────────────────────────────────
+        gen_grp = QGroupBox("Generation")
+        gen_form = QFormLayout(gen_grp)
+        gen_form.setSpacing(10)
 
         self._temp_spin = QDoubleSpinBox()
         self._temp_spin.setRange(0.0, 2.0)
         self._temp_spin.setSingleStep(0.1)
-        form.addRow("Temperature:", self._temp_spin)
+        gen_form.addRow("Temperature:", self._temp_spin)
 
         self._max_tokens_spin = QSpinBox()
         self._max_tokens_spin.setRange(128, 8192)
         self._max_tokens_spin.setSingleStep(128)
-        form.addRow("Max Tokens:", self._max_tokens_spin)
+        gen_form.addRow("Max Tokens:", self._max_tokens_spin)
 
-        # Info label
-        info = QLabel(
-            "Saturday uses g4f (free AI) which connects to multiple\n"
-            "free AI providers automatically — no account needed."
-        )
-        info.setStyleSheet(
-            "color: rgba(240,240,255,0.5);"
-            "font-size: 11px;"
-            "padding: 4px;"
-        )
-        form.addRow("", info)
-
-        layout.addWidget(grp)
+        layout.addWidget(gen_grp)
         layout.addStretch()
         self._tabs.addTab(tab, "🤖  AI")
+
+        # Trigger status check after UI is built
+        QTimer.singleShot(400, self._test_ollama)
+
+    # ── Ollama helpers ────────────────────────────────────────────────────────
+
+    def _set_ollama_status(self, ok: bool, detail: str = "") -> None:
+        """Update the status badge on the main thread."""
+        if ok:
+            self._ollama_status.setText("⬤  Ollama connected ✓" + (f"  —  {detail}" if detail else ""))
+            self._ollama_status.setStyleSheet(
+                "background: rgba(52,211,153,0.12);"
+                "border: 1px solid rgba(52,211,153,0.4);"
+                "border-radius: 8px;"
+                "color: #34D399;"
+                "font-size: 13px; font-weight: 600;"
+                "padding: 10px 16px;"
+            )
+        else:
+            self._ollama_status.setText("⬤  Ollama not reachable" + (f"  —  {detail}" if detail else ""))
+            self._ollama_status.setStyleSheet(
+                "background: rgba(248,113,113,0.10);"
+                "border: 1px solid rgba(248,113,113,0.35);"
+                "border-radius: 8px;"
+                "color: #F87171;"
+                "font-size: 13px; font-weight: 600;"
+                "padding: 10px 16px;"
+            )
+
+    def _test_ollama(self) -> None:
+        """Ping Ollama in a thread — never blocks the UI."""
+        url = self._ollama_url_edit.text().strip() or "http://localhost:11434"
+        self._ollama_status.setText("⬤  Ollama status: checking…")
+        self._ollama_status.setStyleSheet(
+            "background: rgba(255,255,255,0.06);"
+            "border: 1px solid rgba(255,255,255,0.12);"
+            "border-radius: 8px;"
+            "color: rgba(240,240,255,0.6);"
+            "font-size: 13px; font-weight: 600;"
+            "padding: 10px 16px;"
+        )
+
+        def _check():
+            try:
+                import urllib.request, json
+                req = urllib.request.Request(
+                    f"{url}/api/tags",
+                    headers={"Accept": "application/json"},
+                )
+                with urllib.request.urlopen(req, timeout=4) as resp:
+                    data = json.loads(resp.read())
+                models = [m["name"] for m in data.get("models", [])]
+                count  = len(models)
+                QTimer.singleShot(0, lambda: self._on_ollama_ok(models, f"{count} model{'s' if count != 1 else ''} found"))
+            except Exception as exc:
+                QTimer.singleShot(0, lambda: self._set_ollama_status(False, str(exc)[:60]))
+
+        threading.Thread(target=_check, daemon=True).start()
+
+    def _on_ollama_ok(self, models: list[str], detail: str) -> None:
+        self._set_ollama_status(True, detail)
+        self._populate_models(models)
+
+    def _fetch_models(self) -> None:
+        """Refresh model list from Ollama."""
+        url = self._ollama_url_edit.text().strip() or "http://localhost:11434"
+
+        def _get():
+            try:
+                import urllib.request, json
+                with urllib.request.urlopen(f"{url}/api/tags", timeout=4) as r:
+                    data   = json.loads(r.read())
+                    models = [m["name"] for m in data.get("models", [])]
+                QTimer.singleShot(0, lambda: self._populate_models(models))
+            except Exception as exc:
+                log.warning("Fetch models failed: %s", exc)
+
+        threading.Thread(target=_get, daemon=True).start()
+
+    def _populate_models(self, models: list[str]) -> None:
+        """Fill the model combo from Ollama /api/tags response."""
+        current = self._ollama_model_combo.currentText()
+        self._ollama_model_combo.clear()
+        if models:
+            self._ollama_model_combo.addItems(models)
+        # Restore selection if still present
+        idx = self._ollama_model_combo.findText(current)
+        if idx >= 0:
+            self._ollama_model_combo.setCurrentIndex(idx)
+        elif current:
+            self._ollama_model_combo.setEditText(current)
+
 
     # ── Voice Tab ─────────────────────────────────────────────────────────────
 
@@ -406,13 +535,18 @@ class SettingsPanel(QWidget):
     # ── Load / Save ───────────────────────────────────────────────────────────
 
     def _load_values(self) -> None:
-        self._model_edit.setText(config.get("ai", "model", default="gpt-4o-mini"))
+        self._ollama_url_edit.setText(
+            config.get("ai", "ollama_base_url", default="http://localhost:11434")
+        )
+        saved_model = config.get("ai", "model", default="llama3.1")
+        self._ollama_model_combo.setEditText(saved_model)
+
         self._temp_spin.setValue(config.get("ai", "temperature", default=0.7))
         self._max_tokens_spin.setValue(config.get("ai", "max_tokens", default=1024))
 
         self._tts_rate_slider.setValue(config.get("voice", "tts_rate", default=175))
         self._tts_volume_slider.setValue(int(config.get("voice", "tts_volume", default=1.0) * 100))
-        self._stt_model_combo.setCurrentText(config.get("voice", "stt_model", default="tiny.en"))
+        self._stt_model_combo.setCurrentText(config.get("voice", "stt_model", default="base.en"))
         self._stt_device_combo.setCurrentText(config.get("voice", "stt_device", default="cpu"))
 
         self._short_term_spin.setValue(config.get("memory", "short_term_max", default=20))
@@ -424,28 +558,33 @@ class SettingsPanel(QWidget):
         self._streaming_mode_chk.setChecked(config.get("voice", "streaming_mode", default=True))
 
     def _save(self) -> None:
-        config.set("ai", "provider", "g4f")
-        config.set("ai", "model", self._model_edit.text().strip() or "gpt-4o-mini")
-        config.set("ai", "api_key", "")  # No API key needed
-        config.set("ai", "temperature", self._temp_spin.value())
-        config.set("ai", "max_tokens", self._max_tokens_spin.value())
+        url   = self._ollama_url_edit.text().strip() or "http://localhost:11434"
+        model = self._ollama_model_combo.currentText().strip() or "llama3.1"
 
-        config.set("voice", "tts_rate", self._tts_rate_slider.value())
-        config.set("voice", "tts_volume", self._tts_volume_slider.value() / 100.0)
-        config.set("voice", "stt_model", self._stt_model_combo.currentText())
-        config.set("voice", "stt_device", self._stt_device_combo.currentText())
-        config.set("voice", "streaming_mode", self._streaming_mode_chk.isChecked())
+        config.set("ai", "provider",         "ollama")
+        config.set("ai", "ollama_base_url",  url)
+        config.set("ai", "openai_base_url",  url.rstrip("/") + "/v1")
+        config.set("ai", "model",            model)
+        config.set("ai", "api_key",          "")
+        config.set("ai", "temperature",      self._temp_spin.value())
+        config.set("ai", "max_tokens",       self._max_tokens_spin.value())
+
+        config.set("voice", "tts_rate",      self._tts_rate_slider.value())
+        config.set("voice", "tts_volume",    self._tts_volume_slider.value() / 100.0)
+        config.set("voice", "stt_model",     self._stt_model_combo.currentText())
+        config.set("voice", "stt_device",    self._stt_device_combo.currentText())
+        config.set("voice", "streaming_mode",self._streaming_mode_chk.isChecked())
 
         config.set("memory", "short_term_max", self._short_term_spin.value())
-        config.set("hotkey", self._hotkey_edit.text().strip())
-        config.set("auto_startup", self._auto_startup_chk.isChecked())
-        config.set("ui", "animations_enabled", self._animations_chk.isChecked())
-        config.set("ui", "show_waveform", self._waveform_chk.isChecked())
-        config.set("auto_dismiss_seconds", self._dismiss_spin.value())
+        config.set("hotkey",                 self._hotkey_edit.text().strip())
+        config.set("auto_startup",           self._auto_startup_chk.isChecked())
+        config.set("ui", "animations_enabled",self._animations_chk.isChecked())
+        config.set("ui", "show_waveform",    self._waveform_chk.isChecked())
+        config.set("auto_dismiss_seconds",   self._dismiss_spin.value())
 
         config.save()
         self.settings_saved.emit()
-        log.info("Settings saved.")
+        log.info("Settings saved — Ollama @ %s, model=%s", url, model)
         self.hide()
 
 

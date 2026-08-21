@@ -21,8 +21,15 @@ _LOG_FILE = _APP_DATA / "saturday.log"
 _root_log = logging.getLogger()
 _root_log.setLevel(logging.DEBUG)
 
-_file_handler = logging.handlers.RotatingFileHandler(
-    _LOG_FILE, maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8"
+class SafeRotatingFileHandler(logging.handlers.RotatingFileHandler):
+    def doRollover(self):
+        try:
+            super().doRollover()
+        except Exception:
+            pass  # avoid crash if file is temporarily locked by another handle
+
+_file_handler = SafeRotatingFileHandler(
+    _LOG_FILE, maxBytes=10 * 1024 * 1024, backupCount=3, encoding="utf-8", delay=True
 )
 _file_handler.setFormatter(
     logging.Formatter("%(asctime)s %(levelname)-8s %(name)s — %(message)s")
@@ -31,6 +38,8 @@ _file_handler.setLevel(logging.DEBUG)
 _root_log.addHandler(_file_handler)
 
 _console_handler = logging.StreamHandler(sys.stdout)
+# Use errors='replace' so non-ASCII chars (✓, →, etc.) never crash the console handler
+_console_handler.stream = open(sys.stdout.fileno(), mode='w', encoding='utf-8', errors='replace', closefd=False)
 _console_handler.setFormatter(logging.Formatter("%(levelname)-8s %(name)s — %(message)s"))
 _console_handler.setLevel(logging.INFO)
 _root_log.addHandler(_console_handler)
@@ -38,14 +47,14 @@ _root_log.addHandler(_console_handler)
 log = logging.getLogger("saturday.main")
 
 # ── Qt must be imported after logging ─────────────────────────────────────────
-from PySide6.QtCore import Qt, QTimer, QThreadPool, QRunnable
+from PySide6.QtCore import Qt, QTimer, QThreadPool, QRunnable, QObject, Signal
 from PySide6.QtGui import QIcon, QAction, QPixmap, QColor, QPainter
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
 
 from config import config
 from database import initialize as db_init
 from core import AppController, AppState
-from ui import OverlayWidget, OrbWidget, WaveformWidget, CardManager, SettingsPanel
+from ui import OverlayWidget, OrbWidget, WaveformWidget, CardManager, SettingsPanel, CommandBar
 
 
 # ── Tray icon generator (no asset file needed) ────────────────────────────────
@@ -110,96 +119,122 @@ class _SubsystemLoader(QRunnable):
         self._ctrl = controller
 
     def run(self) -> None:
-        from voice import AudioRecorder, StreamRecorder, STTEngine, TTSEngine
-        from ai import LLMClient, Agent
-        from memory import MemoryManager
-        from automation import AppControl, FileOps, BrowserControl, SystemActions, ReminderEngine
-
         ctrl = self._ctrl
+        try:
+            from voice import AudioRecorder, StreamRecorder, STTEngine, TTSEngine
+            from ai import LLMClient, Agent
+            from memory import MemoryManager
+            from automation import AppControl, FileOps, BrowserControl, SystemActions, ReminderEngine
 
-        # Memory
-        mem = MemoryManager()
-        mem.load()
-        ctrl.memory = mem
+            # Memory
+            ctrl.init_progress.emit(15, "Loading long-term memory database...")
+            mem = MemoryManager()
+            mem.load()
+            ctrl.memory = mem
 
-        # TTS
-        tts = TTSEngine()
-        tts.load()
-        ctrl.tts = tts
+            # TTS
+            ctrl.init_progress.emit(35, "Configuring speech voices...")
+            tts = TTSEngine()
+            tts.load()
+            ctrl.tts = tts
 
-        # STT
-        stt = STTEngine()
-        stt.load()
-        ctrl.stt = stt
+            # STT
+            ctrl.init_progress.emit(55, "Loading Whisper speech-to-text model...")
+            stt = STTEngine()
+            stt.load()
+            ctrl.stt = stt
 
-        # Automation
-        app_ctrl = AppControl()
-        file_ops = FileOps()
-        browser  = BrowserControl()
-        system   = SystemActions()
+            # Automation
+            ctrl.init_progress.emit(75, "Starting system automation & reminders...")
+            app_ctrl = AppControl()
+            file_ops = FileOps()
+            browser  = BrowserControl()
+            system   = SystemActions()
 
-        def _reminder_callback(title: str, body: str) -> None:
-            ctrl.reminder_fired.emit(title, body)
+            def _reminder_callback(title: str, body: str) -> None:
+                ctrl.reminder_fired.emit(title, body)
 
-        reminders = ReminderEngine(fire_callback=_reminder_callback)
-        reminders.start()
+            reminders = ReminderEngine(fire_callback=_reminder_callback)
+            reminders.start()
 
-        # LLM + Agent
-        llm = LLMClient()
-        agent = Agent(
-            llm=llm,
-            memory=mem,
-            app_control=app_ctrl,
-            file_ops=file_ops,
-            browser=browser,
-            system=system,
-            reminders=reminders,
-        )
-        ctrl.agent = agent
+            # LLM + Agent
+            ctrl.init_progress.emit(90, "Connecting to local Ollama LLM brain...")
+            llm = LLMClient()
+            llm.warm_up()
+            agent = Agent(
+                llm=llm,
+                memory=mem,
+                app_control=app_ctrl,
+                file_ops=file_ops,
+                browser=browser,
+                system=system,
+                reminders=reminders,
+            )
+            ctrl.agent = agent
 
-        # ── Shared level callback ──────────────────────────────────────────────
-        def _on_level(level: float) -> None:
-            ctrl.audio_level.emit(level)
+            # ── Shared level callback ──────────────────────────────────────────
+            def _on_level(level: float) -> None:
+                ctrl.audio_level.emit(level)
 
-        def _on_recorder_error(message: str) -> None:
-            ctrl.recorder_error.emit(message)
+            def _on_recorder_error(message: str) -> None:
+                ctrl.recorder_error.emit(message)
 
-        # ── Push-to-talk AudioRecorder (legacy / fallback) ────────────────────
-        def _on_silence() -> None:
-            ctrl.vad_silence_requested.emit()
+            # ── Push-to-talk AudioRecorder (legacy / fallback) ────────────────
+            def _on_silence() -> None:
+                ctrl.vad_silence_requested.emit()
 
-        recorder = AudioRecorder(
-            level_callback=_on_level,
-            silence_callback=_on_silence,
-            error_callback=_on_recorder_error,
-            silence_threshold_ms=config.get("voice", "silence_threshold_ms", default=1200),
-            vad_aggressiveness=config.get("voice", "vad_aggressiveness", default=2),
-            device=config.get("voice", "input_device", default=None),
-        )
-        ctrl.recorder = recorder
+            recorder = AudioRecorder(
+                level_callback=_on_level,
+                silence_callback=_on_silence,
+                error_callback=_on_recorder_error,
+                silence_threshold_ms=config.get("voice", "silence_threshold_ms", default=1200),
+                vad_aggressiveness=config.get("voice", "vad_aggressiveness", default=2),
+                device=config.get("voice", "input_device", default=None),
+            )
+            ctrl.recorder = recorder
 
-        # ── Real-time StreamRecorder ───────────────────────────────────────────
-        # utterance_callback fires from a background thread → emit a signal so
-        # AppController.on_stream_utterance() runs on the Qt main thread.
-        def _on_utterance(audio) -> None:
-            ctrl.utterance_ready.emit(audio)
+            # ── Real-time StreamRecorder ───────────────────────────────────────
+            def _on_utterance(audio) -> None:
+                ctrl.utterance_ready.emit(audio)
 
-        stream_recorder = StreamRecorder(
-            level_callback=_on_level,
-            utterance_callback=_on_utterance,
-            error_callback=_on_recorder_error,
-            silence_threshold_ms=config.get("voice", "silence_threshold_ms", default=900),
-            vad_aggressiveness=config.get("voice", "vad_aggressiveness", default=2),
-            min_speech_ms=300,
-            max_utterance_ms=15000,
-            device=config.get("voice", "input_device", default=None),
-        )
-        ctrl.stream_recorder = stream_recorder
+            ctrl.init_progress.emit(98, "Configuring microphone audio stream...")
+            stream_recorder = StreamRecorder(
+                level_callback=_on_level,
+                utterance_callback=_on_utterance,
+                error_callback=_on_recorder_error,
+                silence_threshold_ms=config.get("voice", "silence_threshold_ms", default=900),
+                vad_aggressiveness=config.get("voice", "vad_aggressiveness", default=2),
+                min_speech_ms=300,
+                max_utterance_ms=15000,
+                device=config.get("voice", "input_device", default=None),
+            )
+            ctrl.stream_recorder = stream_recorder
 
-        log.info("All subsystems loaded — real-time voice ready.")
+            ctrl.init_progress.emit(100, "All subsystems active · AI ready")
+            log.info("All subsystems loaded — real-time voice ready.")
+            # Notify the CommandBar that voice is now available
+            ctrl.subsystems_ready.emit()
+
+        except Exception as exc:
+            import traceback
+            log.error("Subsystem loader CRASHED: %s\n%s", exc, traceback.format_exc())
+            # Notify the UI so the user sees an error instead of a silent hang
+            try:
+                ctrl.show_card.emit(
+                    "Saturday — Startup Error",
+                    f"Failed to load subsystems: {exc}\n\nCheck the log for details.",
+                )
+            except Exception:
+                pass
 
 
-# ── Hotkey listener ───────────────────────────────────────────────────────────
+# ── Thread-Safe Hotkey Bridge ─────────────────────────────────────────────────
+
+class _HotkeyBridge(QObject):
+    voice_hotkey_triggered = Signal()
+    text_hotkey_triggered  = Signal()
+    esc_hotkey_triggered   = Signal()
+
 
 def _start_hotkey(hotkey_str: str, callback) -> None:
     """Start a global hotkey listener in a daemon thread."""
@@ -211,7 +246,7 @@ def _start_hotkey(hotkey_str: str, callback) -> None:
             log.info("Hotkey registered: %s", hotkey_str)
             keyboard.wait()
         except Exception as exc:
-            log.warning("Hotkey listener error: %s", exc)
+            log.warning("Hotkey listener error (%s): %s", hotkey_str, exc)
     t = threading.Thread(target=_listen, daemon=True)
     t.start()
 
@@ -234,13 +269,16 @@ class SaturdayApp:
         self.controller.set_streaming_mode(config.get("voice", "streaming_mode", default=True))
 
         # UI components
-        self.overlay   = OverlayWidget()
-        self.orb       = OrbWidget()
-        self.waveform  = WaveformWidget()
-        self.cards     = CardManager(
+        self.overlay     = OverlayWidget()
+        self.orb         = OrbWidget()
+        self.waveform    = WaveformWidget()
+        self.cards       = CardManager(
             duration_ms=config.get("auto_dismiss_seconds", default=4) * 1000
         )
-        self.settings  = SettingsPanel()
+        self.settings    = SettingsPanel()
+        self.command_bar = CommandBar()
+        # Show voice-loading state immediately so first hotkey press makes sense
+        self.command_bar.set_voice_loading()
 
         # Tray
         self._build_tray()
@@ -252,15 +290,24 @@ class SaturdayApp:
         if config.get("auto_startup", default=True):
             _register_startup(True)
 
+        # Thread-safe Hotkey Bridge
+        self.hotkey_bridge = _HotkeyBridge()
+        self.hotkey_bridge.voice_hotkey_triggered.connect(self._on_voice_hotkey, Qt.ConnectionType.QueuedConnection)
+        self.hotkey_bridge.text_hotkey_triggered.connect(self._on_text_hotkey, Qt.ConnectionType.QueuedConnection)
+        self.hotkey_bridge.esc_hotkey_triggered.connect(self._on_esc_hotkey, Qt.ConnectionType.QueuedConnection)
+
+        # Global hotkeys
+        voice_hotkey = config.get("hotkey", default="ctrl+space")
+        text_hotkey  = config.get("text_hotkey", default="alt+space")
+
+        _start_hotkey(voice_hotkey, lambda: self.hotkey_bridge.voice_hotkey_triggered.emit())
+        _start_hotkey(text_hotkey,  lambda: self.hotkey_bridge.text_hotkey_triggered.emit())
+        _start_hotkey("esc",        lambda: self.hotkey_bridge.esc_hotkey_triggered.emit())
+
         # Load heavy subsystems in background
         QThreadPool.globalInstance().start(_SubsystemLoader(self.controller))
 
-        # Global hotkey
-        hotkey = config.get("hotkey", default="ctrl+space")
-        _start_hotkey(hotkey, self._on_hotkey)
-        _start_hotkey("esc", self._on_esc)
-
-        log.info("Saturday started. Hotkey: %s", hotkey)
+        log.info("Saturday started. Voice hotkey: %s | Text hotkey: %s", voice_hotkey, text_hotkey)
 
     # ── Tray ──────────────────────────────────────────────────────────────────
 
@@ -318,20 +365,27 @@ class SaturdayApp:
         ctrl.state_changed.connect(self.orb.on_state_changed)
         ctrl.state_changed.connect(self.waveform.on_state_changed)
         ctrl.state_changed.connect(self._on_state_changed)
+        ctrl.state_changed.connect(self.command_bar.on_state_changed)
 
         ctrl.audio_level.connect(self.orb.on_audio_level)
         ctrl.audio_level.connect(self.waveform.on_audio_level)
+        ctrl.audio_level.connect(self.command_bar.on_audio_level)
 
         ctrl.transcription_ready.connect(
             lambda text: self.cards.show("I heard", text)
         )
         ctrl.show_card.connect(self.cards.show)
-        ctrl.reminder_fired.connect(
-            lambda t, b: (
-                self.cards.show(f"⏰ {t}", b),
-                self.tray.showMessage(t, b, QSystemTrayIcon.MessageIcon.Information, 5000),
-            )
-        )
+        def _on_reminder_fired(title: str, body: str) -> None:
+            msg = f"Reminder: {title}"
+            log.info("App received reminder event: %s", msg)
+            self.cards.show(f"⏰ {title}", body)
+            self.tray.showMessage("Saturday Reminder", f"{title}\n{body}".strip(), QSystemTrayIcon.MessageIcon.Information, 7000)
+            self.command_bar.show_response(f"⏰ {msg}")
+            # Speak the reminder aloud via TTS
+            ctrl.agent_result.emit(msg)
+
+        ctrl.reminder_fired.connect(_on_reminder_fired)
+
         ctrl.response_ready.connect(
             lambda text: self.cards.show("Saturday", text)
         )
@@ -339,18 +393,83 @@ class SaturdayApp:
             lambda msg: self.cards.show("Error", msg)
         )
 
+        # CommandBar typed input → controller pipeline
+        self.command_bar.text_submitted.connect(self._on_typed_command)
+        self.command_bar.dismissed.connect(self._on_bar_dismissed)
+
+        # Live progress & response connections
+        ctrl.init_progress.connect(self.orb.on_init_progress)
+        ctrl.init_progress.connect(self.command_bar.on_init_progress)
+        ctrl.subsystems_ready.connect(self.command_bar.set_voice_ready)
+        ctrl.response_ready.connect(self.command_bar.show_response)
+
         self.settings.settings_saved.connect(self._on_settings_saved)
 
     # ── Slots ─────────────────────────────────────────────────────────────────
 
-    def _on_hotkey(self) -> None:
-        # Called from background thread — schedule on Qt main thread
-        self.controller.activate_requested.emit()
+    def _on_voice_hotkey(self) -> None:
+        """Ctrl+Space: Toggle Voice mode / Orb assistant with a fresh new task."""
+        if self.controller.tts:
+            try:
+                self.controller.tts.stop()
+            except Exception:
+                pass
+        if self.controller.agent:
+            self.controller.agent.clear_pending_action()
+        if self.command_bar.is_active:
+            self.command_bar.clear()
 
-    def _on_esc(self) -> None:
-        # Called from background thread — schedule on Qt main thread
+        if self.controller.state == AppState.LISTENING:
+            self.controller.deactivate_requested.emit()
+        else:
+            self.controller.activate_requested.emit()
+
+    def _on_text_hotkey(self) -> None:
+        """Alt+Space: Toggle Glassmorphism Text Space (Command Bar) with a fresh task."""
+        if self.controller.tts:
+            try:
+                self.controller.tts.stop()
+            except Exception:
+                pass
+        if self.controller.agent:
+            self.controller.agent.clear_pending_action()
+
+        if self.command_bar.is_active:
+            self.command_bar.deactivate()
+        else:
+            self.command_bar.clear()
+            self.command_bar.activate()
+
+    def _on_esc_hotkey(self) -> None:
+        """Esc: Stop speech immediately, clear pending actions, and dismiss UI."""
+        log.info("Escape pressed — stopping speech and dismissing.")
+        if self.controller.tts:
+            try:
+                self.controller.tts.stop()
+            except Exception:
+                pass
+        if self.controller.agent:
+            self.controller.agent.clear_pending_action()
+
         if self.controller.state != AppState.IDLE:
-            log.info("Escape pressed, deactivating Saturday.")
+            self.controller.deactivate_requested.emit()
+        if self.command_bar.is_active:
+            self.command_bar.deactivate()
+
+
+    def _on_typed_command(self, text: str) -> None:
+        """User submitted a command by typing in the CommandBar."""
+        # Stop any ongoing voice recording first
+        if self.controller.state == AppState.LISTENING:
+            if self.controller.stream_recorder:
+                self.controller.stream_recorder.pause()
+            if self.controller.recorder:
+                self.controller.recorder.stop()
+        self.controller.text_query(text)
+
+    def _on_bar_dismissed(self) -> None:
+        """CommandBar closed without a typed command — also stop voice."""
+        if self.controller.state == AppState.LISTENING:
             self.controller.deactivate_requested.emit()
 
     def _on_tray_activated(self, reason: QSystemTrayIcon.ActivationReason) -> None:
@@ -359,8 +478,11 @@ class SaturdayApp:
 
     def _on_state_changed(self, state: AppState) -> None:
         self.tray.setIcon(_make_tray_icon(_TRAY_COLORS.get(state, "#6C63FF")))
-        if state == AppState.DISMISS:
+        if state in (AppState.DISMISS, AppState.IDLE):
             self.cards.dismiss_all()
+            if self.command_bar.is_active:
+                if not (self.controller.agent and getattr(self.controller.agent, "has_pending_action", False)):
+                    self.command_bar.deactivate()
         tooltips = {
             AppState.IDLE:       "Saturday — Idle  (Ctrl+Space to activate)",
             AppState.LISTENING:  "Saturday — Listening…",

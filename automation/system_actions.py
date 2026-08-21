@@ -48,6 +48,14 @@ class SystemActions:
             return self.brightness_up()
         if "brightness down" in a:
             return self.brightness_down()
+        if any(w in a for w in ("play", "pause", "resume", "toggle")):
+            return self.media_play_pause()
+        if any(w in a for w in ("next", "skip")):
+            return self.media_next()
+        if any(w in a for w in ("previous", "prev", "back")):
+            return self.media_prev()
+        if "stop" in a:
+            return self.media_stop()
 
         # Try to extract a percentage
         pct_m = re.search(r"volume\s+(?:to\s+)?(\d{1,3})%?", raw, re.I)
@@ -56,7 +64,26 @@ class SystemActions:
 
         return f"I don't recognise the system action: {raw}"
 
+    # ── Media playback ────────────────────────────────────────────────────────
+
+    def media_play_pause(self) -> str:
+        self._send_key(0xB3)  # VK_MEDIA_PLAY_PAUSE
+        return "Toggled media playback."
+
+    def media_next(self) -> str:
+        self._send_key(0xB0)  # VK_MEDIA_NEXT_TRACK
+        return "Skipped to next track."
+
+    def media_prev(self) -> str:
+        self._send_key(0xB1)  # VK_MEDIA_PREV_TRACK
+        return "Skipped to previous track."
+
+    def media_stop(self) -> str:
+        self._send_key(0xB2)  # VK_MEDIA_STOP
+        return "Media playback stopped."
+
     # ── Volume ────────────────────────────────────────────────────────────────
+
 
     def volume_up(self, step: int = 10) -> str:
         self._send_key(0xAF)  # VK_VOLUME_UP
@@ -102,20 +129,23 @@ class SystemActions:
             img.save(str(path))
             log.info("Screenshot saved: %s", path)
             return f"Screenshot saved to Pictures\\Saturday Screenshots\\{path.name}."
-        except ImportError:
+        except Exception:
             pass
-        # Fallback: PrintScreen key + clipboard paste via PowerShell
+
+        # Fallback: PrintScreen key (VK_SNAPSHOT)
         try:
             self._send_key(0x2C)  # VK_SNAPSHOT
             time.sleep(0.3)
             ps_cmd = (
                 f"Add-Type -AssemblyName System.Windows.Forms;"
-                f"[System.Windows.Forms.Clipboard]::GetImage().Save('{path}')"
+                f"$img = [System.Windows.Forms.Clipboard]::GetImage();"
+                f"if ($img) {{ $img.Save('{str(path).replace('\\', '\\\\')}') }}"
             )
-            subprocess.run(["powershell", "-Command", ps_cmd], capture_output=True)
-            return f"Screenshot saved to {path.name}."
+            subprocess.run(["powershell", "-NoProfile", "-Command", ps_cmd], capture_output=True)
+            return f"Screenshot taken."
         except Exception as exc:
             return f"Screenshot failed: {exc}"
+
 
     # ── Lock / Sleep / Shutdown / Restart ─────────────────────────────────────
 

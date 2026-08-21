@@ -84,7 +84,7 @@ class WaveformWidget(QWidget):
     def _reposition(self) -> None:
         screen = QApplication.primaryScreen().geometry()
         x = screen.center().x() - self.width() // 2
-        y = screen.bottom() - 280
+        y = screen.bottom() - 120
         self.move(x, y)
 
     # ── Paint ─────────────────────────────────────────────────────────────────

@@ -1,0 +1,685 @@
+2026-08-03 14:45:13.866 - RealTimeSTT: realtimestt - INFO - Starting RealTimeSTT
+2026-08-03 14:45:13.892 - RealTimeSTT: realtimestt - INFO - Initializing WebRTC voice with Sensitivity 3
+2026-08-03 14:45:13.892 - RealTimeSTT: realtimestt - DEBUG - WebRTC VAD voice activity detection engine initialized successfully
+2026-08-03 14:45:13.893 - RealTimeSTT: realtimestt - DEBUG - Silero VAD auto backend raw_onnx_ifless unavailable
+Traceback (most recent call last):
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 176, in _create_auto_vad
+    return _create_raw_onnx_vad(
+        model_name,
+    ...<4 lines>...
+        chunk_samples,
+    )
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 225, in _create_raw_onnx_vad
+    raise SileroVadError(
+    ...<3 lines>...
+    )
+RealtimeSTT.core.silero_vad.SileroVadError: Could not find silero_vad_op18_ifless.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.
+2026-08-03 14:45:13.894 - RealTimeSTT: realtimestt - DEBUG - Silero VAD auto backend raw_onnx unavailable
+Traceback (most recent call last):
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 176, in _create_auto_vad
+    return _create_raw_onnx_vad(
+        model_name,
+    ...<4 lines>...
+        chunk_samples,
+    )
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 225, in _create_raw_onnx_vad
+    raise SileroVadError(
+    ...<3 lines>...
+    )
+RealtimeSTT.core.silero_vad.SileroVadError: Could not find silero_vad.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.
+2026-08-03 14:51:20.325 - RealTimeSTT: realtimestt - ERROR - Error initializing Silero VAD voice activity detection engine: Could not initialize any automatic Silero VAD backend. Tried: raw_onnx_ifless: Could not find silero_vad_op18_ifless.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.; raw_onnx: Could not find silero_vad.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.; pytorch_cpu: 
+Traceback (most recent call last):
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 287, in _create_pytorch_vad
+    loaded = _load_silero_package_model(onnx=False)
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 303, in _load_silero_package_model
+    module = import_module("silero_vad")
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.3824.0_x64__qbz5n2kfra8p0\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1324, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'silero_vad'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 195, in _create_auto_vad
+    return _create_pytorch_vad("cpu")
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 289, in _create_pytorch_vad
+    loaded = _load_torch_hub_model(onnx=False)
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 319, in _load_torch_hub_model
+    loaded = torch.hub.load(
+        repo_or_dir="snakers4/silero-vad",
+    ...<2 lines>...
+        onnx=onnx,
+    )
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\torch\hub.py", line 661, in load
+    repo_or_dir = _get_cache_or_reload(
+        repo_or_dir,
+    ...<3 lines>...
+        skip_validation=skip_validation,
+    )
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\torch\hub.py", line 291, in _get_cache_or_reload
+    _check_repo_is_trusted(
+    ~~~~~~~~~~~~~~~~~~~~~~^
+        repo_owner,
+        ^^^^^^^^^^^
+    ...<2 lines>...
+        trust_repo=trust_repo,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\torch\hub.py", line 376, in _check_repo_is_trusted
+    response = input(
+        f"The repository {owner_name} does not belong to the list of trusted repositories and as such cannot be downloaded. "
+        "Do you trust this repository and wish to add it to the trusted list of repositories (y/N)?"
+    )
+EOFError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\initialization.py", line 558, in _initialize_voice_activity_detection
+    recorder.silero_vad_model = create_silero_vad_model(
+                                ~~~~~~~~~~~~~~~~~~~~~~~^
+        backend=silero_backend,
+        ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+        logger=logger,
+        ^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 114, in create_silero_vad_model
+    return _create_auto_vad(
+        onnx_model_path=onnx_model_path,
+    ...<3 lines>...
+        logger=log,
+    )
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 198, in _create_auto_vad
+    raise SileroVadError(
+    ...<2 lines>...
+    )
+RealtimeSTT.core.silero_vad.SileroVadError: Could not initialize any automatic Silero VAD backend. Tried: raw_onnx_ifless: Could not find silero_vad_op18_ifless.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.; raw_onnx: Could not find silero_vad.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.; pytorch_cpu: 
+2026-08-03 14:51:41.465 - RealTimeSTT: realtimestt - INFO - Starting RealTimeSTT
+2026-08-03 14:51:41.502 - RealTimeSTT: realtimestt - INFO - Initializing WebRTC voice with Sensitivity 3
+2026-08-03 14:51:41.502 - RealTimeSTT: realtimestt - DEBUG - WebRTC VAD voice activity detection engine initialized successfully
+2026-08-03 14:51:41.502 - RealTimeSTT: realtimestt - DEBUG - Silero VAD auto backend raw_onnx_ifless unavailable
+Traceback (most recent call last):
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 176, in _create_auto_vad
+    return _create_raw_onnx_vad(
+        model_name,
+    ...<4 lines>...
+        chunk_samples,
+    )
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 225, in _create_raw_onnx_vad
+    raise SileroVadError(
+    ...<3 lines>...
+    )
+RealtimeSTT.core.silero_vad.SileroVadError: Could not find silero_vad_op18_ifless.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.
+2026-08-03 14:51:41.504 - RealTimeSTT: realtimestt - DEBUG - Silero VAD auto backend raw_onnx unavailable
+Traceback (most recent call last):
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 176, in _create_auto_vad
+    return _create_raw_onnx_vad(
+        model_name,
+    ...<4 lines>...
+        chunk_samples,
+    )
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 225, in _create_raw_onnx_vad
+    raise SileroVadError(
+    ...<3 lines>...
+    )
+RealtimeSTT.core.silero_vad.SileroVadError: Could not find silero_vad.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.
+2026-08-03 14:53:42.832 - RealTimeSTT: realtimestt - ERROR - Error initializing Silero VAD voice activity detection engine: Could not initialize any automatic Silero VAD backend. Tried: raw_onnx_ifless: Could not find silero_vad_op18_ifless.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.; raw_onnx: Could not find silero_vad.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.; pytorch_cpu: 
+Traceback (most recent call last):
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 287, in _create_pytorch_vad
+    loaded = _load_silero_package_model(onnx=False)
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 303, in _load_silero_package_model
+    module = import_module("silero_vad")
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.3824.0_x64__qbz5n2kfra8p0\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1324, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'silero_vad'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 195, in _create_auto_vad
+    return _create_pytorch_vad("cpu")
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 289, in _create_pytorch_vad
+    loaded = _load_torch_hub_model(onnx=False)
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 319, in _load_torch_hub_model
+    loaded = torch.hub.load(
+        repo_or_dir="snakers4/silero-vad",
+    ...<2 lines>...
+        onnx=onnx,
+    )
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\torch\hub.py", line 661, in load
+    repo_or_dir = _get_cache_or_reload(
+        repo_or_dir,
+    ...<3 lines>...
+        skip_validation=skip_validation,
+    )
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\torch\hub.py", line 291, in _get_cache_or_reload
+    _check_repo_is_trusted(
+    ~~~~~~~~~~~~~~~~~~~~~~^
+        repo_owner,
+        ^^^^^^^^^^^
+    ...<2 lines>...
+        trust_repo=trust_repo,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\torch\hub.py", line 376, in _check_repo_is_trusted
+    response = input(
+        f"The repository {owner_name} does not belong to the list of trusted repositories and as such cannot be downloaded. "
+        "Do you trust this repository and wish to add it to the trusted list of repositories (y/N)?"
+    )
+EOFError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\initialization.py", line 558, in _initialize_voice_activity_detection
+    recorder.silero_vad_model = create_silero_vad_model(
+                                ~~~~~~~~~~~~~~~~~~~~~~~^
+        backend=silero_backend,
+        ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+        logger=logger,
+        ^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 114, in create_silero_vad_model
+    return _create_auto_vad(
+        onnx_model_path=onnx_model_path,
+    ...<3 lines>...
+        logger=log,
+    )
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 198, in _create_auto_vad
+    raise SileroVadError(
+    ...<2 lines>...
+    )
+RealtimeSTT.core.silero_vad.SileroVadError: Could not initialize any automatic Silero VAD backend. Tried: raw_onnx_ifless: Could not find silero_vad_op18_ifless.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.; raw_onnx: Could not find silero_vad.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.; pytorch_cpu: 
+2026-08-03 14:54:02.821 - RealTimeSTT: realtimestt - INFO - Starting RealTimeSTT
+2026-08-03 14:54:02.862 - RealTimeSTT: realtimestt - INFO - Initializing WebRTC voice with Sensitivity 3
+2026-08-03 14:54:02.863 - RealTimeSTT: realtimestt - DEBUG - WebRTC VAD voice activity detection engine initialized successfully
+2026-08-03 14:54:02.863 - RealTimeSTT: realtimestt - DEBUG - Silero VAD auto backend raw_onnx_ifless unavailable
+Traceback (most recent call last):
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 176, in _create_auto_vad
+    return _create_raw_onnx_vad(
+        model_name,
+    ...<4 lines>...
+        chunk_samples,
+    )
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 225, in _create_raw_onnx_vad
+    raise SileroVadError(
+    ...<3 lines>...
+    )
+RealtimeSTT.core.silero_vad.SileroVadError: Could not find silero_vad_op18_ifless.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.
+2026-08-03 14:54:02.865 - RealTimeSTT: realtimestt - DEBUG - Silero VAD auto backend raw_onnx unavailable
+Traceback (most recent call last):
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 176, in _create_auto_vad
+    return _create_raw_onnx_vad(
+        model_name,
+    ...<4 lines>...
+        chunk_samples,
+    )
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 225, in _create_raw_onnx_vad
+    raise SileroVadError(
+    ...<3 lines>...
+    )
+RealtimeSTT.core.silero_vad.SileroVadError: Could not find silero_vad.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.
+2026-08-03 15:48:29.231 - RealTimeSTT: realtimestt - INFO - Starting RealTimeSTT
+2026-08-03 15:48:29.274 - RealTimeSTT: realtimestt - INFO - Initializing WebRTC voice with Sensitivity 3
+2026-08-03 15:48:29.274 - RealTimeSTT: realtimestt - DEBUG - WebRTC VAD voice activity detection engine initialized successfully
+2026-08-03 15:48:29.275 - RealTimeSTT: realtimestt - DEBUG - Silero VAD auto backend raw_onnx_ifless unavailable
+Traceback (most recent call last):
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 176, in _create_auto_vad
+    return _create_raw_onnx_vad(
+        model_name,
+    ...<4 lines>...
+        chunk_samples,
+    )
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 225, in _create_raw_onnx_vad
+    raise SileroVadError(
+    ...<3 lines>...
+    )
+RealtimeSTT.core.silero_vad.SileroVadError: Could not find silero_vad_op18_ifless.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.
+2026-08-03 15:48:29.277 - RealTimeSTT: realtimestt - DEBUG - Silero VAD auto backend raw_onnx unavailable
+Traceback (most recent call last):
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 176, in _create_auto_vad
+    return _create_raw_onnx_vad(
+        model_name,
+    ...<4 lines>...
+        chunk_samples,
+    )
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 225, in _create_raw_onnx_vad
+    raise SileroVadError(
+    ...<3 lines>...
+    )
+RealtimeSTT.core.silero_vad.SileroVadError: Could not find silero_vad.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.
+2026-08-03 18:30:16.472 - RealTimeSTT: realtimestt - ERROR - Error initializing Silero VAD voice activity detection engine: Could not initialize any automatic Silero VAD backend. Tried: raw_onnx_ifless: Could not find silero_vad_op18_ifless.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.; raw_onnx: Could not find silero_vad.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.; pytorch_cpu: Untrusted repository.
+Traceback (most recent call last):
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 287, in _create_pytorch_vad
+    loaded = _load_silero_package_model(onnx=False)
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 303, in _load_silero_package_model
+    module = import_module("silero_vad")
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.3824.0_x64__qbz5n2kfra8p0\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1324, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'silero_vad'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 195, in _create_auto_vad
+    return _create_pytorch_vad("cpu")
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 289, in _create_pytorch_vad
+    loaded = _load_torch_hub_model(onnx=False)
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 319, in _load_torch_hub_model
+    loaded = torch.hub.load(
+        repo_or_dir="snakers4/silero-vad",
+    ...<2 lines>...
+        onnx=onnx,
+    )
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\torch\hub.py", line 661, in load
+    repo_or_dir = _get_cache_or_reload(
+        repo_or_dir,
+    ...<3 lines>...
+        skip_validation=skip_validation,
+    )
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\torch\hub.py", line 291, in _get_cache_or_reload
+    _check_repo_is_trusted(
+    ~~~~~~~~~~~~~~~~~~~~~~^
+        repo_owner,
+        ^^^^^^^^^^^
+    ...<2 lines>...
+        trust_repo=trust_repo,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\torch\hub.py", line 384, in _check_repo_is_trusted
+    raise Exception("Untrusted repository.")  # noqa: TRY002
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Exception: Untrusted repository.
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\initialization.py", line 558, in _initialize_voice_activity_detection
+    recorder.silero_vad_model = create_silero_vad_model(
+                                ~~~~~~~~~~~~~~~~~~~~~~~^
+        backend=silero_backend,
+        ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+        logger=logger,
+        ^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 114, in create_silero_vad_model
+    return _create_auto_vad(
+        onnx_model_path=onnx_model_path,
+    ...<3 lines>...
+        logger=log,
+    )
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 198, in _create_auto_vad
+    raise SileroVadError(
+    ...<2 lines>...
+    )
+RealtimeSTT.core.silero_vad.SileroVadError: Could not initialize any automatic Silero VAD backend. Tried: raw_onnx_ifless: Could not find silero_vad_op18_ifless.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.; raw_onnx: Could not find silero_vad.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.; pytorch_cpu: Untrusted repository.
+2026-08-03 18:30:25.763 - RealTimeSTT: realtimestt - INFO - Starting RealTimeSTT
+2026-08-03 18:30:25.818 - RealTimeSTT: realtimestt - INFO - Initializing WebRTC voice with Sensitivity 3
+2026-08-03 18:30:25.818 - RealTimeSTT: realtimestt - DEBUG - WebRTC VAD voice activity detection engine initialized successfully
+2026-08-03 18:30:25.819 - RealTimeSTT: realtimestt - DEBUG - Silero VAD auto backend raw_onnx_ifless unavailable
+Traceback (most recent call last):
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 176, in _create_auto_vad
+    return _create_raw_onnx_vad(
+        model_name,
+    ...<4 lines>...
+        chunk_samples,
+    )
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 225, in _create_raw_onnx_vad
+    raise SileroVadError(
+    ...<3 lines>...
+    )
+RealtimeSTT.core.silero_vad.SileroVadError: Could not find silero_vad_op18_ifless.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.
+2026-08-03 18:30:25.821 - RealTimeSTT: realtimestt - DEBUG - Silero VAD auto backend raw_onnx unavailable
+Traceback (most recent call last):
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 176, in _create_auto_vad
+    return _create_raw_onnx_vad(
+        model_name,
+    ...<4 lines>...
+        chunk_samples,
+    )
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 225, in _create_raw_onnx_vad
+    raise SileroVadError(
+    ...<3 lines>...
+    )
+RealtimeSTT.core.silero_vad.SileroVadError: Could not find silero_vad.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.
+2026-08-03 18:30:25.960 - RealTimeSTT: realtimestt - ERROR - Error initializing Silero VAD voice activity detection engine: Could not initialize any automatic Silero VAD backend. Tried: raw_onnx_ifless: Could not find silero_vad_op18_ifless.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.; raw_onnx: Could not find silero_vad.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.; pytorch_cpu: Untrusted repository.
+Traceback (most recent call last):
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 287, in _create_pytorch_vad
+    loaded = _load_silero_package_model(onnx=False)
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 303, in _load_silero_package_model
+    module = import_module("silero_vad")
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.3824.0_x64__qbz5n2kfra8p0\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1324, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'silero_vad'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 195, in _create_auto_vad
+    return _create_pytorch_vad("cpu")
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 289, in _create_pytorch_vad
+    loaded = _load_torch_hub_model(onnx=False)
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 319, in _load_torch_hub_model
+    loaded = torch.hub.load(
+        repo_or_dir="snakers4/silero-vad",
+    ...<2 lines>...
+        onnx=onnx,
+    )
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\torch\hub.py", line 661, in load
+    repo_or_dir = _get_cache_or_reload(
+        repo_or_dir,
+    ...<3 lines>...
+        skip_validation=skip_validation,
+    )
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\torch\hub.py", line 291, in _get_cache_or_reload
+    _check_repo_is_trusted(
+    ~~~~~~~~~~~~~~~~~~~~~~^
+        repo_owner,
+        ^^^^^^^^^^^
+    ...<2 lines>...
+        trust_repo=trust_repo,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\torch\hub.py", line 384, in _check_repo_is_trusted
+    raise Exception("Untrusted repository.")  # noqa: TRY002
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Exception: Untrusted repository.
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\initialization.py", line 558, in _initialize_voice_activity_detection
+    recorder.silero_vad_model = create_silero_vad_model(
+                                ~~~~~~~~~~~~~~~~~~~~~~~^
+        backend=silero_backend,
+        ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+        logger=logger,
+        ^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 114, in create_silero_vad_model
+    return _create_auto_vad(
+        onnx_model_path=onnx_model_path,
+    ...<3 lines>...
+        logger=log,
+    )
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 198, in _create_auto_vad
+    raise SileroVadError(
+    ...<2 lines>...
+    )
+RealtimeSTT.core.silero_vad.SileroVadError: Could not initialize any automatic Silero VAD backend. Tried: raw_onnx_ifless: Could not find silero_vad_op18_ifless.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.; raw_onnx: Could not find silero_vad.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.; pytorch_cpu: Untrusted repository.
+2026-08-03 18:47:47.311 - RealTimeSTT: realtimestt - INFO - Starting RealTimeSTT
+2026-08-03 18:47:47.362 - RealTimeSTT: realtimestt - INFO - Initializing WebRTC voice with Sensitivity 3
+2026-08-03 18:47:47.362 - RealTimeSTT: realtimestt - DEBUG - WebRTC VAD voice activity detection engine initialized successfully
+2026-08-03 18:47:47.363 - RealTimeSTT: realtimestt - DEBUG - Silero VAD auto backend raw_onnx_ifless unavailable
+Traceback (most recent call last):
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 176, in _create_auto_vad
+    return _create_raw_onnx_vad(
+        model_name,
+    ...<4 lines>...
+        chunk_samples,
+    )
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 225, in _create_raw_onnx_vad
+    raise SileroVadError(
+    ...<3 lines>...
+    )
+RealtimeSTT.core.silero_vad.SileroVadError: Could not find silero_vad_op18_ifless.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.
+2026-08-03 18:47:47.364 - RealTimeSTT: realtimestt - DEBUG - Silero VAD auto backend raw_onnx unavailable
+Traceback (most recent call last):
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 176, in _create_auto_vad
+    return _create_raw_onnx_vad(
+        model_name,
+    ...<4 lines>...
+        chunk_samples,
+    )
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 225, in _create_raw_onnx_vad
+    raise SileroVadError(
+    ...<3 lines>...
+    )
+RealtimeSTT.core.silero_vad.SileroVadError: Could not find silero_vad.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.
+2026-08-03 18:47:47.487 - RealTimeSTT: realtimestt - ERROR - Error initializing Silero VAD voice activity detection engine: Could not initialize any automatic Silero VAD backend. Tried: raw_onnx_ifless: Could not find silero_vad_op18_ifless.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.; raw_onnx: Could not find silero_vad.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.; pytorch_cpu: Untrusted repository.
+Traceback (most recent call last):
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 287, in _create_pytorch_vad
+    loaded = _load_silero_package_model(onnx=False)
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 303, in _load_silero_package_model
+    module = import_module("silero_vad")
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.3824.0_x64__qbz5n2kfra8p0\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1324, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'silero_vad'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 195, in _create_auto_vad
+    return _create_pytorch_vad("cpu")
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 289, in _create_pytorch_vad
+    loaded = _load_torch_hub_model(onnx=False)
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 319, in _load_torch_hub_model
+    loaded = torch.hub.load(
+        repo_or_dir="snakers4/silero-vad",
+    ...<2 lines>...
+        onnx=onnx,
+    )
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\torch\hub.py", line 661, in load
+    repo_or_dir = _get_cache_or_reload(
+        repo_or_dir,
+    ...<3 lines>...
+        skip_validation=skip_validation,
+    )
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\torch\hub.py", line 291, in _get_cache_or_reload
+    _check_repo_is_trusted(
+    ~~~~~~~~~~~~~~~~~~~~~~^
+        repo_owner,
+        ^^^^^^^^^^^
+    ...<2 lines>...
+        trust_repo=trust_repo,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\torch\hub.py", line 384, in _check_repo_is_trusted
+    raise Exception("Untrusted repository.")  # noqa: TRY002
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Exception: Untrusted repository.
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\initialization.py", line 558, in _initialize_voice_activity_detection
+    recorder.silero_vad_model = create_silero_vad_model(
+                                ~~~~~~~~~~~~~~~~~~~~~~~^
+        backend=silero_backend,
+        ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+        logger=logger,
+        ^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 114, in create_silero_vad_model
+    return _create_auto_vad(
+        onnx_model_path=onnx_model_path,
+    ...<3 lines>...
+        logger=log,
+    )
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 198, in _create_auto_vad
+    raise SileroVadError(
+    ...<2 lines>...
+    )
+RealtimeSTT.core.silero_vad.SileroVadError: Could not initialize any automatic Silero VAD backend. Tried: raw_onnx_ifless: Could not find silero_vad_op18_ifless.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.; raw_onnx: Could not find silero_vad.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.; pytorch_cpu: Untrusted repository.
+2026-08-18 17:52:04.566 - RealTimeSTT: realtimestt - INFO - Starting RealTimeSTT
+2026-08-18 17:52:04.652 - RealTimeSTT: realtimestt - INFO - Initializing WebRTC voice with Sensitivity 3
+2026-08-18 17:52:04.653 - RealTimeSTT: realtimestt - DEBUG - WebRTC VAD voice activity detection engine initialized successfully
+2026-08-18 17:52:04.655 - RealTimeSTT: realtimestt - DEBUG - Silero VAD auto backend raw_onnx_ifless unavailable
+Traceback (most recent call last):
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 176, in _create_auto_vad
+    return _create_raw_onnx_vad(
+        model_name,
+    ...<4 lines>...
+        chunk_samples,
+    )
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 225, in _create_raw_onnx_vad
+    raise SileroVadError(
+    ...<3 lines>...
+    )
+RealtimeSTT.core.silero_vad.SileroVadError: Could not find silero_vad_op18_ifless.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.
+2026-08-18 17:52:04.685 - RealTimeSTT: realtimestt - DEBUG - Silero VAD auto backend raw_onnx unavailable
+Traceback (most recent call last):
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 176, in _create_auto_vad
+    return _create_raw_onnx_vad(
+        model_name,
+    ...<4 lines>...
+        chunk_samples,
+    )
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 225, in _create_raw_onnx_vad
+    raise SileroVadError(
+    ...<3 lines>...
+    )
+RealtimeSTT.core.silero_vad.SileroVadError: Could not find silero_vad.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.
+2026-08-18 17:57:21.255 - RealTimeSTT: realtimestt - INFO - Starting RealTimeSTT
+2026-08-18 17:57:21.334 - RealTimeSTT: realtimestt - INFO - Initializing WebRTC voice with Sensitivity 3
+2026-08-18 17:57:21.334 - RealTimeSTT: realtimestt - DEBUG - WebRTC VAD voice activity detection engine initialized successfully
+2026-08-18 17:57:21.335 - RealTimeSTT: realtimestt - DEBUG - Silero VAD auto backend raw_onnx_ifless unavailable
+Traceback (most recent call last):
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 176, in _create_auto_vad
+    return _create_raw_onnx_vad(
+        model_name,
+    ...<4 lines>...
+        chunk_samples,
+    )
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 225, in _create_raw_onnx_vad
+    raise SileroVadError(
+    ...<3 lines>...
+    )
+RealtimeSTT.core.silero_vad.SileroVadError: Could not find silero_vad_op18_ifless.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.
+2026-08-18 17:57:21.337 - RealTimeSTT: realtimestt - DEBUG - Silero VAD auto backend raw_onnx unavailable
+Traceback (most recent call last):
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 176, in _create_auto_vad
+    return _create_raw_onnx_vad(
+        model_name,
+    ...<4 lines>...
+        chunk_samples,
+    )
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 225, in _create_raw_onnx_vad
+    raise SileroVadError(
+    ...<3 lines>...
+    )
+RealtimeSTT.core.silero_vad.SileroVadError: Could not find silero_vad.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.
+2026-08-18 17:57:55.904 - RealTimeSTT: realtimestt - DEBUG - Silero VAD voice activity detection engine initialized successfully with backend pytorch_cpu
+2026-08-18 17:57:56.387 - RealTimeSTT: realtimestt - DEBUG - Starting realtime worker
+2026-08-18 17:57:56.387 - RealTimeSTT: realtimestt - DEBUG - Waiting for main transcription model to start
+2026-08-18 17:57:56.388 - RealTimeSTT: realtimestt - DEBUG - Realtime transcription disabled; realtime worker exits
+2026-08-18 17:57:56.388 - RealTimeSTT: realtimestt - DEBUG - Main transcription model ready
+2026-08-18 17:57:56.391 - RealTimeSTT: realtimestt - DEBUG - RealtimeSTT initialization completed successfully
+2026-08-18 17:59:21.821 - RealTimeSTT: realtimestt - ERROR - Error initializing Silero VAD voice activity detection engine: Could not initialize any automatic Silero VAD backend. Tried: raw_onnx_ifless: Could not find silero_vad_op18_ifless.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.; raw_onnx: Could not find silero_vad.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.; pytorch_cpu: 
+Traceback (most recent call last):
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 287, in _create_pytorch_vad
+    loaded = _load_silero_package_model(onnx=False)
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 303, in _load_silero_package_model
+    module = import_module("silero_vad")
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.3824.0_x64__qbz5n2kfra8p0\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1324, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'silero_vad'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 195, in _create_auto_vad
+    return _create_pytorch_vad("cpu")
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 289, in _create_pytorch_vad
+    loaded = _load_torch_hub_model(onnx=False)
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 319, in _load_torch_hub_model
+    loaded = torch.hub.load(
+        repo_or_dir="snakers4/silero-vad",
+    ...<2 lines>...
+        onnx=onnx,
+    )
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\torch\hub.py", line 661, in load
+    repo_or_dir = _get_cache_or_reload(
+        repo_or_dir,
+    ...<3 lines>...
+        skip_validation=skip_validation,
+    )
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\torch\hub.py", line 291, in _get_cache_or_reload
+    _check_repo_is_trusted(
+    ~~~~~~~~~~~~~~~~~~~~~~^
+        repo_owner,
+        ^^^^^^^^^^^
+    ...<2 lines>...
+        trust_repo=trust_repo,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\torch\hub.py", line 376, in _check_repo_is_trusted
+    response = input(
+        f"The repository {owner_name} does not belong to the list of trusted repositories and as such cannot be downloaded. "
+        "Do you trust this repository and wish to add it to the trusted list of repositories (y/N)?"
+    )
+EOFError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\initialization.py", line 558, in _initialize_voice_activity_detection
+    recorder.silero_vad_model = create_silero_vad_model(
+                                ~~~~~~~~~~~~~~~~~~~~~~~^
+        backend=silero_backend,
+        ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+        logger=logger,
+        ^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 114, in create_silero_vad_model
+    return _create_auto_vad(
+        onnx_model_path=onnx_model_path,
+    ...<3 lines>...
+        logger=log,
+    )
+  File "C:\Users\saiye\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\RealtimeSTT\core\silero_vad.py", line 198, in _create_auto_vad
+    raise SileroVadError(
+    ...<2 lines>...
+    )
+RealtimeSTT.core.silero_vad.SileroVadError: Could not initialize any automatic Silero VAD backend. Tried: raw_onnx_ifless: Could not find silero_vad_op18_ifless.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.; raw_onnx: Could not find silero_vad.onnx in the installed silero_vad package or the local torch hub cache. Install 'silero-vad' or pass silero_onnx_model_path.; pytorch_cpu: 
+2026-08-18 18:03:25.105 - RealTimeSTT: realtimestt - INFO - Starting RealTimeSTT
+2026-08-18 18:03:25.212 - RealTimeSTT: realtimestt - INFO - Initializing WebRTC voice with Sensitivity 3
+2026-08-18 18:03:25.213 - RealTimeSTT: realtimestt - DEBUG - WebRTC VAD voice activity detection engine initialized successfully
+2026-08-18 18:03:25.437 - RealTimeSTT: realtimestt - DEBUG - Silero VAD voice activity detection engine initialized successfully with backend raw_onnx_ifless
+2026-08-18 18:03:25.446 - RealTimeSTT: realtimestt - DEBUG - Starting realtime worker
+2026-08-18 18:03:25.446 - RealTimeSTT: realtimestt - DEBUG - Realtime transcription disabled; realtime worker exits
+2026-08-18 18:03:25.446 - RealTimeSTT: realtimestt - DEBUG - Waiting for main transcription model to start
+2026-08-18 18:03:30.021 - RealTimeSTT: realtimestt - DEBUG - Main transcription model ready
+2026-08-18 18:03:30.022 - RealTimeSTT: realtimestt - DEBUG - RealtimeSTT initialization completed successfully
